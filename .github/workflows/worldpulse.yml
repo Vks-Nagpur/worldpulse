@@ -41,7 +41,7 @@ jobs:
         run: |
           mkdir -p ../data
           if git fetch --depth=1 origin "$DATA_BRANCH" 2>/dev/null; then
-            git show "origin/$DATA_BRANCH:worldpulse.sqlite.gz" > ../data/worldpulse.sqlite.gz 2>/dev/null && gunzip -f ../data/worldpulse.sqlite.gz || echo "no previous database"
+            git show "FETCH_HEAD:worldpulse.sqlite.gz" > ../data/worldpulse.sqlite.gz && gunzip -f ../data/worldpulse.sqlite.gz && ls -la ../data || echo "no previous database"
           else
             echo "first run: no data branch yet"
           fi
@@ -94,10 +94,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch latest data snapshot
         run: |
+          set -o pipefail
           git fetch --depth=1 origin "$DATA_BRANCH"
           mkdir -p public/data
-          git archive "origin/$DATA_BRANCH" | tar -x -C public/data
+          git archive FETCH_HEAD | tar -x -C public/data
           rm -f public/data/worldpulse.sqlite.gz
+          test -f public/data/meta.json || { echo "::error::data snapshot missing meta.json"; exit 1; }
+          ls public/data
       - uses: actions/setup-node@v4
         with:
           node-version: 22
