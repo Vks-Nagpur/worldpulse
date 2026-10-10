@@ -97,7 +97,7 @@ jobs:
           set -o pipefail
           git fetch --depth=1 origin "$DATA_BRANCH"
           mkdir -p public/data
-          git archive FETCH_HEAD | tar -x -C public/data
+          (cd "$GITHUB_WORKSPACE" && git archive FETCH_HEAD) | tar -x -C public/data
           rm -f public/data/worldpulse.sqlite.gz
           test -f public/data/meta.json || { echo "::error::data snapshot missing meta.json"; exit 1; }
           ls public/data
