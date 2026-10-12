@@ -29,6 +29,7 @@ from .processing.normalize import clean_text, now_iso, parse_iso, to_iso
 
 # keyword pattern -> Wikipedia search phrase for long-running issues
 TOPICS: list[tuple[str, str]] = [
+    (r"(north korea|dprk|pyongyang|kim jong).*(missile|nuclear|sanction)|(missile|nuclear|sanction).*(north korea|dprk|pyongyang)", "North Korea and weapons of mass destruction"),
     (r"ukrain|kyiv|zelensk|donbas|crimea", "Russian invasion of Ukraine"),
     (r"gaza|hamas", "Gaza war"),
     (r"west bank", "Israeli occupation of the West Bank"),
@@ -39,7 +40,6 @@ TOPICS: list[tuple[str, str]] = [
     (r"\bsudan|darfur|el fasher|rapid support forces|\brsf\b", "Sudanese civil war (2023–present)"),
     (r"iran.*nuclear|nuclear.*iran|uranium enrichment", "Nuclear program of Iran"),
     (r"iran.*israel|israel.*iran", "Iran–Israel proxy conflict"),
-    (r"north korea.*missile|pyongyang.*missile|ballistic missile.*north korea", "North Korea and weapons of mass destruction"),
     (r"(china|chinese|beijing).*(tariff|trade war|export control)|(tariff|trade war|export control).*(china|chinese|beijing)", "China–United States trade war"),
     (r"kashmir", "Kashmir conflict"),
     (r"india.*pakistan|pakistan.*india", "India–Pakistan relations"),
