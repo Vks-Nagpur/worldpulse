@@ -44,15 +44,15 @@ function buildBlocks(e: Event, d: EventDetail | null, names: Record<string, Coun
   const sm = d?.summary
   if (sm) {
     const txt = lang === 'hi' && sm.text_hi ? sm.text_hi : sm.text
-    b.push({ kind: 'quote', text: txt, note: 'Summary written by a small open AI model from the reports below, then automatically checked: every name and number must appear in those reports.' })
+    b.push({ kind: 'quote', text: txt, note: 'Short summary written by a small open AI model from the reports listed below, then checked automatically: every name and number must appear in those reports, and guesses are rejected.' })
   }
   const joined = placeText.length > 1 ? `${placeText.slice(0, -1).join(', ')} and ${placeText[placeText.length - 1]}` : placeText[0]
   b.push({ kind: 'p', text: `${(TOPIC_PLAIN[e.category] || TOPIC_PLAIN.general)}${placeText.length ? ` It concerns ${joined}.` : ''}` })
 
-  const who = (d?.entities || []).filter((x) => ['person', 'organisation', 'group'].includes(x.kind)).slice(0, 5)
+  const who = (d?.entities || []).filter((x) => ['person', 'organisation'].includes(x.kind) && x.mentions >= 2).slice(0, 5)
   if (who.length) {
     b.push({ kind: 'h', text: 'Who is involved' })
-    who.forEach((x) => b.push({ kind: 'li', text: `${x.name} — ${x.kind === 'person' ? 'person' : x.kind === 'group' ? 'group' : 'organisation'}, named in ${x.mentions} report${x.mentions === 1 ? '' : 's'}` }))
+    who.forEach((x) => b.push({ kind: 'li', text: `${x.name} — ${x.kind === 'person' ? 'person' : 'organisation'}, named in ${x.mentions} reports` }))
   }
 
   b.push({ kind: 'h', text: 'How sure is this?' })

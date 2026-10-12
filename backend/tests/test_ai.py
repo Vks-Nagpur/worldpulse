@@ -55,3 +55,23 @@ def test_embed_and_merge(tmp_path):
     assert r["merged"] == 1
     cl = dict(c.execute("SELECT id, cluster_id FROM articles").fetchall())
     assert cl["a1"] == cl["a2"] and cl["a3"] != cl["a1"]
+
+
+def test_validate_rejects_filler_repeats_and_off_topic():
+    from worldpulse.ai import validate_summary
+    facts = "- BBC: Flood advisory for Charleston County as heavy rain continues — prolonged rain expected in South Carolina."
+    rep = "There is a flood advisory in Charleston County. It is caused by prolonged rain, and prolonged rain, and prolonged rain."
+    assert not validate_summary(rep, facts, "Flood advisory for Charleston County")[0]
+    fill = "The flood advisory covers Charleston County. South Carolina is a country located in America."
+    assert not validate_summary(fill, facts, "Flood advisory for Charleston County")[0]
+    off = "Heavy rain continues in South Carolina. Rain is heavy."
+    assert validate_summary(off, facts, "Totally different headline about elections budget")[1] == "off topic"
+
+
+def test_entity_filter_drops_headline_fragments():
+    from worldpulse.ai import _good_entity
+    assert not _good_entity("Full-Scale Invasion", "organisation")
+    assert not _good_entity("Hackers Heat Supermarket Fridges", "organisation")
+    assert not _good_entity("Russia", "organisation")
+    assert _good_entity("Volodymyr Zelensky", "person")
+    assert _good_entity("European Union", "organisation")

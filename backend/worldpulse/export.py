@@ -134,7 +134,7 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
         ents = ai.entities_for(conn, e["id"])
         disputes = ai.disagreements(conn, e["cluster_id"])
         summ = ai.summary_for(conn, e["id"])
-        light["who"] = [x["name"] for x in ents if x["kind"] in ("person", "organisation", "group")][:3]
+        light["who"] = [x["name"] for x in ents if x["kind"] in ("person", "organisation") and x["mentions"] >= 2][:3]
         light["disputed"] = bool(disputes)
         light["ai"] = bool(summ)
         # one-line summary for cards: the checked AI summary, else the outlet's own excerpt (quoted, not rewritten)

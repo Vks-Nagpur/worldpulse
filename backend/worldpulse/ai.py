@@ -91,7 +91,7 @@ def _from_blob(b: bytes):
     return np.frombuffer(b, dtype=np.float16).astype(np.float32)
 
 
-def embed_and_merge(conn: sqlite3.Connection, log=print, embedder=None, threshold: float = 0.84) -> dict:
+def embed_and_merge(conn: sqlite3.Connection, log=print, embedder=None, threshold: float = 0.87) -> dict:
     """Embed new headlines, merge clusters about the same story (any language),
     and give 'general' articles a topic when the meaning clearly fits one."""
     import numpy as np
@@ -117,6 +117,7 @@ def embed_and_merge(conn: sqlite3.Connection, log=print, embedder=None, threshol
     cents /= np.linalg.norm(cents, axis=1, keepdims=True) + 1e-9
     first = {c: min(a["d"] for a in by[c]) for c in ids}
     cset = {c: set(k for a in by[c] for k, v in uj(a["countries"], {}).items() if v >= 0.9) for c in ids}
+    cat = {c: Counter(a["category"] for a in by[c]).most_common(1)[0][0] for c in ids}
     sims = cents @ cents.T
     parent = {c: c for c in ids}
 
@@ -135,6 +136,8 @@ def embed_and_merge(conn: sqlite3.Connection, log=print, embedder=None, threshol
                 continue
             if cset[a] and cset[b] and not (cset[a] & cset[b]):
                 continue  # same wording about different countries is a different story
+            if cat[a] == "natural_disasters" or cat[b] == "natural_disasters":
+                continue  # alerts share wording but are about different places
             ra, rb = root(a), root(b)
             if ra != rb:
                 keep, drop = (ra, rb) if first[ra] <= first[rb] else (rb, ra)
@@ -173,6 +176,24 @@ _ENT_STOP = {"reuters", "ap", "afp", "bbc", "cnn", "video", "live", "watch", "th
              "saturday", "sunday", "today", "news", "breaking"}
 
 
+_ENT_JUNK = re.compile(r"\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|exclusive|explainer|watch|"
+                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|fridges?|ceasefire|war|crisis|deal)\b", re.I)
+
+
+def _good_entity(name: str, kind: str) -> bool:
+    """Drop headline fragments and common words that a small model mistakes for names."""
+    from .gazetteer import COUNTRIES
+    low = name.lower()
+    if not 2 < len(name) < 50 or low in _ENT_STOP or not re.search(r"[A-Za-z]", name):
+        return False
+    if kind in ("person", "organisation"):
+        if _ENT_JUNK.search(name) or len(name.split()) > 4:
+            return False
+        if any(low == c.name.lower() for c in COUNTRIES.values()):
+            return False
+    return True
+
+
 def extract_entities(conn: sqlite3.Connection, log=print, nlp=None) -> int:
     ensure_tables(conn)
     if nlp is None:
@@ -188,11 +209,13 @@ def extract_entities(conn: sqlite3.Connection, log=print, nlp=None) -> int:
                 continue
             cnt: Counter = Counter()
             for doc in nlp.pipe(texts):
+                found = set()
                 for ent in doc.ents:
                     kind = ENT_KINDS.get(ent.label_)
                     name = ent.text.strip(" '\"‘’“”").replace("’s", "").replace("'s", "")
-                    if kind and 2 < len(name) < 60 and name.lower() not in _ENT_STOP:
-                        cnt[(name, kind)] += 1
+                    if kind and _good_entity(name, kind):
+                        found.add((name, kind))
+                cnt.update(found)  # mentions = number of reports naming it
             conn.execute("DELETE FROM event_entities WHERE event_id=?", (e["id"],))
             for (name, kind), c in cnt.most_common(12):
                 conn.execute("INSERT OR REPLACE INTO event_entities VALUES (?,?,?,?)", (e["id"], name, kind, c))
@@ -268,12 +291,15 @@ def build_facts(conn: sqlite3.Connection, e: sqlite3.Row, background: list[dict]
         lines.append(f"- {a['publisher'] or 'An outlet'} ({(a['d'] or '')[:10]}): {a['title']}" + (f" — {a['excerpt']}" if a["excerpt"] else ""))
     for b in background[:1]:
         lines.append(f"- Background (Wikipedia, {b['title']}): " + " ".join(re.split(r"(?<=\.)\s", b["extract"])[:3]))
-    for p in places[:1]:
-        lines.append(f"- About {p['title']} (Wikipedia): " + " ".join(re.split(r"(?<=\.)\s", p["extract"])[:2]))
     return "\n".join(lines)
 
 
-def validate_summary(text: str, facts: str) -> tuple[bool, str]:
+_FILLER = re.compile(r"\b(is a country|located in|federal republic|news outlets|different outlets|in different locations|various sources|"
+                     r"stay tuned|in conclusion|overall,)\b", re.I)
+_TITLE_STOP = set("says said after amid over with from that this what when will have been more about into than their they update live".split())
+
+
+def validate_summary(text: str, facts: str, title: str = "") -> tuple[bool, str]:
     t = text.strip()
     sents = [s for s in re.split(r"(?<=[.!?])\s+", t) if s.strip()]
     if not 2 <= len(sents) <= 6:
@@ -284,6 +310,16 @@ def validate_summary(text: str, facts: str) -> tuple[bool, str]:
         return False, "talks about itself"
     if _SPECULATIVE.search(t):
         return False, "speculation"
+    words = re.findall(r"[a-z0-9]+", t.lower())
+    grams = [" ".join(words[i:i + 3]) for i in range(len(words) - 2)]
+    if len(grams) != len(set(grams)) and len(grams) - len(set(grams)) > 1:
+        return False, "repeats itself"
+    if _FILLER.search(t):
+        return False, "filler"
+    if title:
+        tw = {w for w in re.findall(r"[a-z]{4,}", title.lower())} - _TITLE_STOP
+        if tw and len(tw & set(words)) < min(2, len(tw)):
+            return False, "off topic"
     fl = facts.lower().replace(",", "")
     for n in re.findall(r"\d+(?:[.,]\d+)?", t):
         if n.replace(",", "") not in fl:
@@ -318,12 +354,22 @@ SYSTEM_HI = ("Translate the English text into simple Hindi (Devanagari script). 
              "places and organisations. Do not add or remove information. Output only the Hindi translation.")
 
 
-def write_summaries(conn: sqlite3.Connection, log=print, writer=None, budget_s: float = 420, max_items: int = 30, hindi: bool = True) -> int:
+SUMMARY_RULES = "v2"
+
+# automatic alerts and guides read the same every time; a summary adds nothing
+_TEMPLATED = re.compile(r"\b(advisory|forecast|warning for|watch for|magnitude|earthquake of|general election:|polling place|how to vote|live updates?)\b", re.I)
+
+
+def write_summaries(conn: sqlite3.Connection, log=print, writer=None, budget_s: float = 420, max_items: int = 30, hindi: bool = False) -> int:
     from . import context
     ensure_tables(conn)
     rank = {"official_statement": 3, "multi_source_reporting": 2}
     evs = conn.execute("""SELECT * FROM events WHERE origin='news_cluster' AND verification IN ('official_statement','multi_source_reporting')
                           AND last_updated >= ?""", (_since(hours=48),)).fetchall()
+    skip = [e["id"] for e in evs if e["category"] == "natural_disasters" or _TEMPLATED.search(e["title"])]
+    with tx(conn):
+        conn.executemany("DELETE FROM event_summaries WHERE event_id=?", [(i,) for i in skip])
+    evs = [e for e in evs if e["id"] not in set(skip)]
     evs = sorted(evs, key=lambda e: -(rank[e["verification"]] * 2 + len(uj(e["source_refs"], []))))[:max_items * 2]
     w = writer
     deadline = time.monotonic() + budget_s
@@ -334,17 +380,19 @@ def write_summaries(conn: sqlite3.Connection, log=print, writer=None, budget_s: 
         bg = [b for b in (context.cached(conn, f"topic:{q}") for q in context.topics_for(e["title"])) if b]
         pl = [b for c in [e["country"]] if c and (b := context.cached(conn, f"country:{c}"))]
         facts = build_facts(conn, e, bg, pl)
-        h = hashlib.sha1(facts.encode()).hexdigest()[:16]
+        h = hashlib.sha1((SUMMARY_RULES + facts).encode()).hexdigest()[:16]  # new rules → re-check old summaries
         old = conn.execute("SELECT evidence_hash FROM event_summaries WHERE event_id=?", (e["id"],)).fetchone()
         if old and old["evidence_hash"] == h:
             continue
         if w is None:
             w = Writer()
         text = w.chat(SYSTEM_EN, f"FACTS:\n{facts}\n\nWrite the summary.")
-        ok, why = validate_summary(text, facts)
+        ok, why = validate_summary(text, facts, e["title"])
         if not ok:
             rejected += 1
             log(f"  ai: rejected summary ({why}) for “{e['title'][:60]}”")
+            with tx(conn):
+                conn.execute("DELETE FROM event_summaries WHERE event_id=?", (e["id"],))
             continue
         hi = None
         if hindi and time.monotonic() < deadline:
@@ -364,7 +412,7 @@ def summary_for(conn: sqlite3.Connection, event_id: str) -> dict | None:
         r = conn.execute("SELECT * FROM event_summaries WHERE event_id=?", (event_id,)).fetchone()
     except sqlite3.OperationalError:
         return None
-    return {"text": r["text"], "text_hi": r["text_hi"], "model": r["model"], "created_at": r["created_at"]} if r else None
+    return {"text": r["text"], "text_hi": None, "model": r["model"], "created_at": r["created_at"]} if r else None
 
 
 def run_all(conn: sqlite3.Connection, log=print) -> dict:
