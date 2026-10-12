@@ -532,3 +532,12 @@ body { background: var(--bg); }
 .today-grid > *, .stories { min-width: 0; }
 .slider, .slider-track { max-width: 100%; min-width: 0; }
 .slide .lead .facts { min-width: 0; }
+
+/* web results */
+.web { margin-top: 14px; }
+.web-h { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 8px; }
+.web-wiki { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px; }
+.web-wcard { display: flex; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-2); color: var(--text); transition: transform .15s var(--ease), border-color .15s; }
+.web-wcard:hover { transform: translateY(-2px); border-color: var(--accent); }
+.web-wcard img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; flex: none; }
+.web-ex { color: var(--muted); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

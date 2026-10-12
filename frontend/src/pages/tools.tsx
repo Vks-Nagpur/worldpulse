@@ -5,6 +5,7 @@ import { API, apiQuery, load, useData } from '../data'
 import { highlight, parseQuery, prepare, score, type Prepared, type Query } from '../search'
 import { t } from '../i18n'
 import { toggleWatch, watchStore } from '../store'
+import { WebResults } from '../components/websearch'
 import { resetName, userName, useUser } from '../components/welcome'
 import { ago, Badge, CAT, cat, Ext, flag, fmtDate } from '../util'
 
@@ -117,6 +118,7 @@ export function Ask() {
                 <div className="small muted">{h.p || 'Source'} · {ago(h.d)}{h.k[0] ? <> · {flag(h.k[0])} {by[h.k[0]]?.name || h.k[0]}</> : null}</div>
               </div></div>))}</div>
           </>}
+          {a.interp.keywords.length > 0 && <WebResults q={a.interp.keywords.join(' ')} />}
           {apiAns && <div className="small faint">Self-hosted engine: {apiAns.summary}</div>}
         </div>
       )}
@@ -176,7 +178,7 @@ export function Search({ initial }: { initial: string }) {
   )
   return (
     <>
-      <PageHead title={`🔎 ${t('Search')}`} sub="Countries, developments, headlines, prices and signals in the published data. Whole words are matched; country tags count too." />
+      <PageHead title={`🔎 ${t('Search')}`} sub="Search WorldPulse and the web in one place — countries, stories, prices, signals, plus live news and background from across the web." />
       <div className="card" style={{ marginBottom: 14 }}>
         <form role="search" onSubmit={(e) => { e.preventDefault(); location.hash = `/search?q=${encodeURIComponent(q.trim())}` }}>
           <input className="input" type="search" enterKeyHint="search" style={{ fontSize: 16, padding: '12px 14px' }} autoFocus placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
@@ -190,8 +192,9 @@ export function Search({ initial }: { initial: string }) {
         <div className="card"><div className="small muted">{full.length}{full.length === 200 ? '+' : ''} result{full.length === 1 ? '' : 's'} containing {query.terms.length > 1 ? 'all words' : `“${query.raw}”`}</div>
           <div className="list">{full.map((h, i) => row(h, i))}</div>
           {partial.length > 0 && <><div className="small muted" style={{ marginTop: 12 }}>Close matches (some of the words)</div><div className="list">{partial.map((h, i) => row(h, i, true))}</div></>}
-          {!full.length && !partial.length && <Empty>No results for “{query.raw}”. Try fewer or different words.</Empty>}</div>
+          {!full.length && !partial.length && <Empty>Nothing in WorldPulse’s own records for “{query.raw}” — see the web results below.</Empty>}</div>
       )}
+      {query.terms.length > 0 && <WebResults q={initial} />}
     </>
   )
 }

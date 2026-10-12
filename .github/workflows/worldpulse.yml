@@ -134,6 +134,12 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      - name: Check web-search sources allow browser requests (info only)
+        continue-on-error: true
+        run: |
+          for u in "https://api.gdeltproject.org/api/v2/doc/doc?mode=artlist&format=json&maxrecords=2&timespan=7d&query=oil" "https://en.wikipedia.org/w/rest.php/v1/search/page?limit=1&q=oil"; do
+            echo "== $u"; curl -s -m 20 -D - -o /tmp/body -H "Origin: https://vks-nagpur.github.io" "$u" | grep -iE "^HTTP|access-control-allow-origin|content-type"; head -c 300 /tmp/body; echo
+          done
       - name: Fetch latest data snapshot
         run: |
           set -o pipefail
