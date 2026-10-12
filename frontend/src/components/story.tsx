@@ -106,7 +106,7 @@ export function LeadStory({ e, names, n, of }: { e: Event; names: Record<string,
     <article className="lead">
       <div className="lead-kicker"><span className="live"><i /> Top story{n && of ? ` ${n}/${of}` : ''}</span><span>{c.icon} {c.label}</span></div>
       <h2><a href={`#/event/${encodeURIComponent(e.id)}`}>{e.title}</a></h2>
-      {sm && <p className="lead-sum">{sm.text}</p>}
+      {sm && <p className="lead-sum">{e.ai && <span className="ai-tag" title="Written by a small open AI model from the reports, then checked: every name and number must appear in them">✨ AI summary</span>}{sm.text}</p>}
       <div className="story-foot">
         <StoryFacts e={e} names={names} dark />
         <span className="row" style={{ gap: 8 }}>
@@ -133,7 +133,7 @@ export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, 
           {src?.p && <span className="faint">· {src.p}</span>}
         </div>
         <h3 className="story-title"><a href={`#/event/${encodeURIComponent(e.id)}`}>{e.title}</a></h3>
-        {sm && <p className="story-sum">{sm.text}</p>}
+        {sm && <p className="story-sum">{e.ai && <span className="ai-tag" title="Written by a small open AI model from the reports, then checked: every name and number must appear in them">✨ AI summary</span>}{sm.text}</p>}
         <div className="story-foot">
           <StoryFacts e={e} names={names} />
           <ExplainButton e={e} names={names} small />
