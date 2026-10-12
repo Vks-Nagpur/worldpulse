@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import { DotMap, LineChart, StackedBars } from '../components/charts'
 import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, VerifBadge } from '../components/ui'
 import type { Article, EventDetail as ED, History, Signal } from '../data'
+import { TOPIC_PLAIN } from '../components/story'
 import { useData } from '../data'
 import { t } from '../i18n'
 import { useFilters } from '../store'
-import { Badge, cat, Ext, flag, fmtDate, hoursSince, num, pct, SIG_STATUS, VERIF } from '../util'
+import { Badge, cat, evidenceLabel, Ext, flag, fmtDate, hoursSince, num, pct, SIG_STATUS, VERIF } from '../util'
 
 const REL: Record<string, string> = { same_event: 'Same event', follow_up: 'Possible follow-up', shared_location: 'Same location', shared_organization: 'Same organization',
   shared_country: 'Same country & topic', reported_consequence: 'Reported consequence', possible_context: 'Possible context' }
@@ -24,15 +25,15 @@ export function EventDetail({ id }: { id: string }) {
         actions={<ShareButton title={e.title} path={`/event/${e.id}`} />} />
       <div className="grid g2">
         <div className="card"><h3>Details</h3>
+          <div className="bg-panel" style={{ marginTop: 6, marginBottom: 10 }}><div className="bg-row"><span className="bg-k">💡 In simple words</span><span>{TOPIC_PLAIN[e.category] || TOPIC_PLAIN.general} {VERIF[e.verification]?.tip}</span></div></div>
           {e.description && <p className="muted">{e.description}</p>}
           <dl className="kv">
             <dt>Countries</dt><dd>{e.countries.length ? e.countries.map((c) => <a key={c} href={`#/country/${c}`} style={{ marginRight: 8 }}>{flag(c)} {by[c]?.name || c}</a>) : 'not identified'}</dd>
-            <dt>First reported</dt><dd>{fmtDate(e.started_at)}</dd><dt>First seen by WorldPulse</dt><dd>{fmtDate(e.first_detected)}</dd><dt>Last update</dt><dd>{fmtDate(e.last_updated)}</dd>
-            <dt>Origin</dt><dd>{e.origin === 'news_cluster' ? 'Grouped news reports' : e.origin.toUpperCase()}</dd>
+            <dt>First reported</dt><dd>{fmtDate(e.started_at)}</dd><dt>Latest report</dt><dd>{fmtDate(e.last_updated)}</dd>
+            <dt>Based on</dt><dd>{e.origin === 'news_cluster' ? 'News reports' : e.origin === 'usgs' ? 'US Geological Survey measurements' : e.origin === 'gdacs' ? 'Global Disaster Alert system' : e.origin}</dd>
             {e.magnitude != null && <><dt>Magnitude</dt><dd>{e.magnitude}</dd></>}
-            <dt>{t('Why this topic')}</dt><dd>{e.why?.length ? e.why.map((w) => <Badge key={w}>{w}</Badge>) : <span className="faint">source category / no keyword</span>}</dd>
-            <dt>Grouping confidence</dt><dd title="How confident the grouping and tagging is — not whether the report is true">{Math.round(e.confidence * 100)}%</dd>
-            <dt>Revision</dt><dd>{e.revision}{e.revisions.length > 0 && <span className="faint"> (changed {e.revisions.map((r) => fmtDate(r.changed_at)).join(', ')})</span>}</dd>
+            {e.why?.length > 0 && <><dt>Topic keywords</dt><dd>{e.why.map((w) => <Badge key={w}>{w}</Badge>)}</dd></>}
+            {e.revisions.length > 0 && <><dt>Updated</dt><dd>details corrected {e.revisions.map((r) => fmtDate(r.changed_at)).join(', ')}</dd></>}
           </dl>
           <LearnLinks text={e.title} />
         </div>
@@ -116,10 +117,10 @@ export function SignalDetail({ id }: { id: string }) {
     <>
       <PageHead title={`${sigIcon(s.signal_type)} ${s.title}`} sub={<span className="row"><Badge tone={st?.tone}>{st?.label}</Badge><span className="small">{st?.tip}</span></span>} actions={<ShareButton title={s.title} path={`/signal/${s.id}`} />} />
       <div className="grid g4" style={{ marginBottom: 14 }}>
-        <Stat label="Observed" value={num(s.observed, 2)} note={s.unit || ''} />
-        <Stat label="Normal (baseline)" value={num(s.baseline, 2)} note={s.baseline_std != null ? `± ${num(s.baseline_std, 2)} typical variation` : 'no baseline for this type'} />
-        <Stat label="Deviation" value={s.deviation != null ? `${s.deviation.toFixed(1)}σ` : '—'} note={pct(s.pct_change)} />
-        <Stat label="Confidence in detection" value={s.confidence} note={`data as of ${s.data_freshness || '—'}`} />
+        <Stat label="Now" value={num(s.observed, 2)} note={s.unit || ''} />
+        <Stat label="Normally" value={num(s.baseline, 2)} note="recent typical level" />
+        <Stat label="Change" value={pct(s.pct_change)} note={s.deviation != null ? (Math.abs(s.deviation) >= 4 ? 'very unusual' : 'unusual') : ''} />
+        <Stat label="Evidence" value={evidenceLabel(s.confidence)} note={`data from ${fmtDate(s.data_freshness, false)}`} />
       </div>
       <div className="grid g2">
         <div className="card"><h3>Supporting evidence</h3><p className="sub">{measure(s)}</p>
@@ -127,7 +128,7 @@ export function SignalDetail({ id }: { id: string }) {
             <div key={i} className="item"><div><div className="t"><Ext href={e.url}>{e.title}</Ext></div>
               <div className="m">{e.type === 'dataset' ? <Badge tone="b-info">dataset</Badge> : <Badge>article</Badge>}{e.publisher && <span>{e.publisher}</span>}{e.published_at && <span>{fmtDate(e.published_at)}</span>}</div>
               {e.detail && <div className="small faint" style={{ marginTop: 4, wordBreak: 'break-word' }}>{e.detail}</div>}</div></div>))}</div></div>
-        <div className="card"><h3>Known limitations</h3><p className="muted">{s.limitations}</p>
+        <div className="card"><h3>Good to know</h3><p className="muted">{s.limitations}</p>
           {vol && <><h3 style={{ marginTop: 12 }}>Coverage over 30 days</h3><LineChart series={[{ name: 'Articles', color: 'var(--c1)', points: vol }]} height={200} /></>}</div>
       </div>
     </>

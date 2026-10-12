@@ -3,7 +3,7 @@ import type { Briefing, CountrySummary, Event, MarketLatest, Signal } from '../d
 import { useData } from '../data'
 import { t } from '../i18n'
 import { DEFAULT_FILTERS, setFilters, toggleWatch, useFilters, watchStore, type Watch } from '../store'
-import { Badge, cat, downloadCSV, Ext, FOCUS, flag, fmtDate, num, pct, SIG_STATUS, sortEvents, tone, VERIF } from '../util'
+import { Badge, cat, downloadCSV, evidenceLabel, Ext, FOCUS, flag, fmtDate, num, pct, SIG_STATUS, sortEvents, tone, VERIF } from '../util'
 import { Sparkline } from './charts'
 
 // ---------------------------------------------------------------- layout bits
@@ -19,7 +19,7 @@ export function Loading({ rows = 4 }: { rows?: number }) {
   return <div className="card">{Array.from({ length: rows }).map((_, i) => <div key={i} className="skeleton" style={{ height: 16, margin: '12px 0', width: `${92 - i * 13}%` }} />)}</div>
 }
 export function ErrorBox({ error }: { error: string }) {
-  return <div className="banner bad"><span>⚠️</span><div><b>This data could not be loaded.</b><div className="small">{error}. If it persists, the latest data run may have failed — see About &amp; sources.</div></div></div>
+  return <div className="banner bad"><span>⚠️</span><div><b>This section could not be loaded right now.</b><div className="small">Please check your connection and refresh the page.</div></div></div>
 }
 export function Empty({ children }: { children: ReactNode }) { return <div className="empty">{children}</div> }
 export function Stat({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
@@ -199,11 +199,12 @@ export function CountryBars({ rows, color, onPick }: { rows?: Event[] | null; co
 // ---------------------------------------------------------------- signals
 export const sigIcon = (tp: string) => ({ news_volume: '📰', topic_volume: '📣', earthquake: '🌍', quake_cluster: '〰️', market: '📉', fx: '💱', disaster_alert: '🚨', internet: '📡' } as Record<string, string>)[tp] || '◆'
 export function measure(s: Signal) {
-  if (s.signal_type === 'news_volume' || s.signal_type === 'topic_volume') return `${Math.round(s.observed || 0)} articles vs ~${Math.round(s.baseline || 0)} normal (${pct(s.pct_change)})`
-  if (s.signal_type === 'market' || s.signal_type === 'fx') return `${pct(s.pct_change)} · ${s.deviation?.toFixed(1)}σ · data ${s.data_freshness}`
+  if (s.signal_type === 'news_volume' || s.signal_type === 'topic_volume') return `${Math.round(s.observed || 0)} articles in a day — normally about ${Math.round(s.baseline || 0)}`
+  if (s.signal_type === 'market' || s.signal_type === 'fx') return `${pct(s.pct_change)} — a bigger move than usual (prices of ${s.data_freshness})`
   if (s.signal_type === 'earthquake') return `magnitude ${s.observed?.toFixed(1)}`
-  if (s.signal_type === 'quake_cluster') return `${s.observed} quakes in 24 h vs ~${s.baseline}/day`
-  return `${s.observed ?? ''} ${s.unit || ''}`
+  if (s.signal_type === 'quake_cluster') return `${s.observed} earthquakes in 24 hours — normally about ${s.baseline} a day`
+  if (s.signal_type === 'internet') return 'internet connections dropped'
+  return ''
 }
 export function SignalItem({ s }: { s: Signal }) {
   const st = SIG_STATUS[s.status] || { label: s.status, tone: 'b-mute', tip: '' }
@@ -214,7 +215,7 @@ export function SignalItem({ s }: { s: Signal }) {
         <div className="t"><a href={`#/signal/${encodeURIComponent(s.id)}`}>{s.title}</a></div>
         <div className="m">
           <Badge tone={st.tone} title={st.tip}>{st.label}</Badge>
-          <Badge tone={s.confidence === 'high' ? 'b-ok' : s.confidence === 'medium' ? 'b-info' : 'b-warn'} title="Confidence that the detection is real (not that anything will happen)">{s.confidence} confidence</Badge>
+          <Badge tone={s.confidence === 'high' ? 'b-ok' : s.confidence === 'medium' ? 'b-info' : 'b-warn'} title="How solid the data behind this is (not whether anything will happen)">{evidenceLabel(s.confidence)}</Badge>
           {s.country && <a className="muted" href={`#/country/${s.country}`}>{flag(s.country)} {s.country}</a>}
           <span>{measure(s)}</span>
         </div>
@@ -281,6 +282,9 @@ export const EXPLAINER_KEYS: [RegExp, string, string][] = [
   [/opec/i, 'opec', 'OPEC+'], [/sanction|export control|embargo/i, 'sanctions', 'Sanctions & export controls'], [/tariff/i, 'tariffs', 'Tariffs'],
   [/rate (cut|hike)|repo rate|interest rate|central bank/i, 'rates', 'Central bank rates'], [/brent|wti|crude/i, 'oil-benchmarks', 'Oil benchmarks'],
   [/rupee|yuan|currency|exchange rate|dollar/i, 'fx', 'Exchange rates'], [/natural gas|lng|henry hub/i, 'gas', 'Natural gas prices'],
+  [/\bnato\b/i, 'nato', 'NATO'], [/security council|\bun\b|united nations/i, 'unsc', 'UN Security Council'], [/ceasefire|truce/i, 'ceasefire', 'Ceasefire'],
+  [/inflation|consumer prices/i, 'inflation', 'Inflation'], [/\bgdp\b|economic growth/i, 'gdp', 'GDP'], [/recession/i, 'recession', 'Recession'],
+  [/houthi/i, 'houthis', 'Houthis'], [/gaza|hamas/i, 'gaza', 'Gaza'], [/taiwan/i, 'taiwan', 'Taiwan & China'],
 ]
 export function LearnLinks({ text }: { text: string }) {
   const hits = EXPLAINER_KEYS.filter(([rx]) => rx.test(text))

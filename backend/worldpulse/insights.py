@@ -321,7 +321,10 @@ def quality(conn: sqlite3.Connection, registry: dict) -> dict:
         "sources_enabled": conn.execute("SELECT count(*) FROM sources WHERE enabled=1").fetchone()[0],
         "duplicates_24h": conn.execute("SELECT count(*) FROM articles WHERE duplicate_of IS NOT NULL AND collected_at >= ?", (_since(hours=24),)).fetchone()[0],
     }
-    prev = [r["value"] for r in conn.execute("SELECT value FROM run_stats WHERE key='new_articles_run' ORDER BY run_at DESC LIMIT 6")]
+    # Compare the rolling 24-hour article count with earlier runs that are at least
+    # a day old, so run spacing and first-day backlogs do not cause false alarms.
+    prev = [r["value"] for r in conn.execute(
+        "SELECT value FROM run_stats WHERE key='articles_24h' AND run_at <= ? ORDER BY run_at DESC LIMIT 8", (_since(hours=24),))]
     problems, checks = [], []
 
     def check(name, ok, detail):
@@ -329,9 +332,9 @@ def quality(conn: sqlite3.Connection, registry: dict) -> dict:
         if not ok:
             problems.append(f"{name}: {detail}")
 
-    med = statistics.median(prev) if len(prev) >= 3 else None
-    check("News volume", not (med and stats["new_articles_run"] < 0.3 * med),
-          f"{stats['new_articles_run']} new articles this run" + (f" vs a median of {med:.0f} over recent runs" if med else " (not enough history to compare yet)"))
+    med = statistics.median(prev) if len(prev) >= 4 else None
+    check("News volume", not (med and stats["articles_24h"] < 0.35 * med),
+          f"{stats['articles_24h']} articles collected in the last 24 hours" + (f" (typical: about {med:.0f})" if med else " (not enough history to compare yet)"))
     ratio = stats["sources_failing"] / max(1, stats["sources_enabled"])
     check("Sources", ratio <= 0.25, f"{stats['sources_failing']} of {stats['sources_enabled']} enabled sources failed on their latest attempt")
     stale = []

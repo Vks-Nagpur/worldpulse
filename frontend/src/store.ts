@@ -27,12 +27,12 @@ export function toggleWatch(kind: keyof Watch, id: string) {
 
 // ---- global filters (kept for the session, shared by every page)
 export type Filters = { focus: string; region: string; country: string; hours: number; support: 'all' | 'multi' | 'official'; q: string }
-export const DEFAULT_FILTERS: Filters = { focus: 'business', region: '', country: '', hours: 168, support: 'all', q: '' }
-let filters: Filters = (() => { try { return { ...DEFAULT_FILTERS, ...JSON.parse(sessionStorage.getItem('worldpulse.filters') || '{}') } } catch { return DEFAULT_FILTERS } })()
+export const DEFAULT_FILTERS: Filters = { focus: 'all', region: '', country: '', hours: 168, support: 'all', q: '' }
+let filters: Filters = (() => { try { return { ...DEFAULT_FILTERS, ...JSON.parse(sessionStorage.getItem('worldpulse.filters.v2') || '{}') } } catch { return DEFAULT_FILTERS } })()
 const fsubs = new Set<() => void>()
 export function setFilters(patch: Partial<Filters>) {
   filters = { ...filters, ...patch }
-  try { sessionStorage.setItem('worldpulse.filters', JSON.stringify(filters)) } catch { /* ignore */ }
+  try { sessionStorage.setItem('worldpulse.filters.v2', JSON.stringify(filters)) } catch { /* ignore */ }
   fsubs.forEach((f) => f())
 }
 export function useFilters(): Filters {

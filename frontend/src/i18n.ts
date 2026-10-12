@@ -11,7 +11,7 @@ const HI: Record<string, string> = {
   'What changed since yesterday': 'कल से क्या बदला', 'Key developments': 'मुख्य घटनाएँ', 'Risk signals': 'जोखिम संकेत', 'My watchlist': 'मेरी वॉचलिस्ट',
   'Where it is happening': 'कहाँ हो रहा है', 'See all': 'सभी देखें', 'Show more': 'और दिखाएँ', 'Share': 'साझा करें', 'Download': 'डाउनलोड',
   'Print / PDF': 'प्रिंट / PDF', 'Updated': 'अपडेट', 'Data collected': 'डेटा एकत्र', 'sources OK': 'स्रोत ठीक',
-  'All business & risk': 'सभी व्यवसाय और जोखिम', 'Markets & economy': 'बाज़ार और अर्थव्यवस्था', 'Wars & military': 'युद्ध और सेना',
+  'Business & risk': 'व्यवसाय और जोखिम', 'Whole world': 'पूरी दुनिया', 'Elections & politics': 'चुनाव और राजनीति', 'Disasters & health': 'आपदा और स्वास्थ्य', 'Markets & economy': 'बाज़ार और अर्थव्यवस्था', 'Wars & military': 'युद्ध और सेना',
   'Sanctions & diplomacy': 'प्रतिबंध और कूटनीति', 'Cyber & tech': 'साइबर और तकनीक', 'Everything': 'सब कुछ',
   'All regions': 'सभी क्षेत्र', 'All countries': 'सभी देश', 'Last 24 hours': 'पिछले 24 घंटे', 'Last 3 days': 'पिछले 3 दिन', 'Last 7 days': 'पिछले 7 दिन',
   'Any support': 'कोई भी पुष्टि', '2+ outlets or official': '2+ स्रोत या आधिकारिक', 'Official or measured only': 'केवल आधिकारिक/मापा गया',

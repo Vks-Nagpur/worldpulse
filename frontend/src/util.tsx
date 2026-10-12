@@ -22,14 +22,16 @@ export const CAT: Record<string, { label: string; color: string; icon: string }>
 export const cat = (c?: string | null) => CAT[c || 'general'] || CAT.general
 
 export const FOCUS: { key: string; label: string; icon: string; cats: string[] | null }[] = [
-  { key: 'business', label: 'All business & risk', icon: '💼', cats: ['financial_markets', 'economics', 'trade', 'energy', 'military_security', 'geopolitics', 'diplomacy', 'cybersecurity', 'technology'] },
+  { key: 'all', label: 'Whole world', icon: '🌍', cats: null },
+  { key: 'business', label: 'Business & risk', icon: '💼', cats: ['financial_markets', 'economics', 'trade', 'energy', 'military_security', 'geopolitics', 'diplomacy', 'cybersecurity', 'technology'] },
   { key: 'markets', label: 'Markets & economy', icon: '📈', cats: ['financial_markets', 'economics'] },
   { key: 'trade', label: 'Trade & shipping', icon: '🚢', cats: ['trade'] },
   { key: 'energy', label: 'Energy', icon: '🛢️', cats: ['energy'] },
   { key: 'conflict', label: 'Wars & military', icon: '🛡️', cats: ['military_security'] },
   { key: 'geo', label: 'Sanctions & diplomacy', icon: '🏛️', cats: ['geopolitics', 'diplomacy'] },
   { key: 'cyber', label: 'Cyber & tech', icon: '🔐', cats: ['cybersecurity', 'technology'] },
-  { key: 'all', label: 'Everything', icon: '🌐', cats: null },
+  { key: 'politics', label: 'Elections & politics', icon: '🗳️', cats: ['elections', 'geopolitics'] },
+  { key: 'disasters', label: 'Disasters & health', icon: '🌋', cats: ['natural_disasters', 'public_health', 'environment'] },
 ]
 
 export const VERIF: Record<string, { label: string; tone: string; tip: string; rank: number }> = {
@@ -40,10 +42,10 @@ export const VERIF: Record<string, { label: string; tone: string; tip: string; r
   single_source_report: { label: 'One outlet', tone: 'b-warn', tip: 'Reported by a single outlet so far. Treat as an unverified claim.', rank: 1 },
 }
 export const SIG_STATUS: Record<string, { label: string; tone: string; tip: string }> = {
-  statistical_anomaly: { label: 'Statistical anomaly', tone: 'b-acc', tip: 'Data is unusually far from its recent normal. Not a prediction.' },
-  observed_measurement: { label: 'Measured', tone: 'b-ok', tip: 'An instrument observation above a threshold.' },
-  official_alert: { label: 'Official alert', tone: 'b-ok', tip: 'An alert from a public monitoring body.' },
-  measurement_alert: { label: 'Unconfirmed', tone: 'b-warn', tip: 'A measurement system flagged a drop; not confirmed by an operator or authority.' },
+  statistical_anomaly: { label: 'Unusual change', tone: 'b-acc', tip: 'Much higher or lower than normal recently. Not a prediction.' },
+  observed_measurement: { label: 'Measured', tone: 'b-ok', tip: 'Recorded by scientific instruments.' },
+  official_alert: { label: 'Official alert', tone: 'b-ok', tip: 'An alert from an official monitoring organisation.' },
+  measurement_alert: { label: 'Not yet confirmed', tone: 'b-warn', tip: 'Measurements suggest a problem, but no operator or authority has confirmed it yet.' },
 }
 export const RISK = [{ label: 'Low', tone: 'b-ok' }, { label: 'Elevated', tone: 'b-warn' }, { label: 'High', tone: 'b-bad' }]
 
@@ -126,3 +128,5 @@ export const sortEvents = (rows: Event[]) => [...rows].sort((a, b) => ((VERIF[b.
   (b.started_at || b.first_detected).localeCompare(a.started_at || a.first_detected))
 
 export { t }
+
+export const evidenceLabel = (c: string) => (c === 'high' ? 'Strong evidence' : c === 'medium' ? 'Some evidence' : 'Weak evidence')

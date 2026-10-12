@@ -117,7 +117,7 @@ function App() {
   if (path.startsWith('/embed/')) return <Suspense fallback={<Loading rows={3} />}><EmbedWidget id={path.split('/')[2] || 'prices'} /></Suspense>
 
   const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href) || (href === '/countries' && path.startsWith('/country/')) || (href === '/signals' && path.startsWith('/signal/')))
-  const stale = meta.data && hoursSince(meta.data.generated_at) > meta.data.stale_after_hours
+  const stale = meta.data && hoursSince(meta.data.generated_at) > 24
   let group = ''
   return (
     <div className="app">
@@ -140,7 +140,7 @@ function App() {
           <button type="button" className="icon-btn" onClick={toggle} aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}<span className="hide-sm">{theme === 'dark' ? t('Light') : t('Dark')}</span></button>
           {install && <button type="button" className="icon-btn hide-sm" onClick={install}>⬇ {t('Install app')}</button>}
         </div>
-        {stale && <div className="banner warn"><span>⏳</span><div><b>This data is {ago(meta.data!.generated_at)} old.</b> <span className="small">The scheduled update may be delayed or failing — see About &amp; sources.</span></div></div>}
+        {stale && <div className="soft-note">🕒 News on this page was last updated {ago(meta.data!.generated_at)}. It refreshes automatically.</div>}
         <Suspense fallback={<Loading rows={6} />}><div className="page" key={path}><Router path={path} query={query} /></div></Suspense>
       </main>
       <nav className="bottom-nav" aria-label="Main">
