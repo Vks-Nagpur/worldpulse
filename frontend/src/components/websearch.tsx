@@ -21,9 +21,10 @@ export function WebResults({ q }: { q: string }) {
   const lang = useLang()
   const [wiki, setWiki] = useState<WikiHit[] | null>(null)
   const [news, setNews] = useState<NewsHit[] | null>(null)
+  const [newsDown, setNewsDown] = useState(false)
   const query = q.trim()
   useEffect(() => {
-    setWiki(null); setNews(null)
+    setWiki(null); setNews(null); setNewsDown(false)
     if (query.length < 2) return
     const ac = new AbortController()
     const tm = setTimeout(() => {
@@ -33,7 +34,7 @@ export function WebResults({ q }: { q: string }) {
       const words = query.split(/\s+/).filter((w) => w.length > 2 || /^[A-Z0-9]+$/.test(w))
       const gq = words.length > 1 ? `"${words.join(' ')}"` : words[0] || query
       fetch(`https://api.gdeltproject.org/api/v2/doc/doc?mode=artlist&format=json&maxrecords=12&timespan=7d&sort=hybridrel&query=${encodeURIComponent(gq + (lang === 'hi' ? '' : ' sourcelang:english'))}`, { signal: ac.signal })
-        .then((r) => r.text()).then((txt) => { try { setNews((JSON.parse(txt).articles || []) as NewsHit[]) } catch { setNews([]) } }, () => !ac.signal.aborted && setNews([]))
+        .then((r) => r.text()).then((txt) => { try { setNews((JSON.parse(txt).articles || []) as NewsHit[]) } catch { setNewsDown(true); setNews([]) } }, () => { if (!ac.signal.aborted) { setNewsDown(true); setNews([]) } })
     }, 500)
     return () => { clearTimeout(tm); ac.abort() }
   }, [query, lang])
@@ -56,7 +57,10 @@ export function WebResults({ q }: { q: string }) {
       )}
 
       <div className="web-h">📰 Latest news worldwide (7 days)</div>
-      {news == null ? <div className="skeleton" style={{ height: 80 }} /> : !newsRows.length ? <div className="small faint">No recent news found from this source. Try other words, or open on Google.</div> : (
+      {news == null ? <div className="skeleton" style={{ height: 80 }} /> : !newsRows.length ? (
+        <div className="row small" style={{ gap: 10 }}><span className="faint">{newsDown ? 'The live news service is busy right now.' : 'No recent news found for these words.'}</span>
+          <a className="btn ghost" href={`https://news.google.com/search?q=${encodeURIComponent(query)}`} target="_blank" rel="noopener noreferrer">Search Google News ↗</a></div>
+      ) : (
         <div className="list">{newsRows.map((n) => (
           <div key={n.url} className="item"><div style={{ minWidth: 0 }}>
             <div className="t"><Ext href={n.url}>{n.title}</Ext></div>
