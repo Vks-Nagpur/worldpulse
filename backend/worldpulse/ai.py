@@ -319,9 +319,9 @@ def validate_summary(text: str, facts: str, title: str = "") -> tuple[bool, str]
     if _SPECULATIVE.search(t):
         return False, "speculation"
     words = re.findall(r"[a-z0-9]+", t.lower())
-    grams = [" ".join(words[i:i + 3]) for i in range(len(words) - 2)]
-    if len(grams) != len(set(grams)) and len(grams) - len(set(grams)) > 1:
-        return False, "repeats itself"
+    grams = [" ".join(words[i:i + 4]) for i in range(len(words) - 3)]
+    if len(grams) - len(set(grams)) > 1 or len({x.strip().lower() for x in sents}) < len(sents):
+        return False, "repeats itself"  # a repeated 4-word phrase more than once, or a repeated sentence
     if _FILLER.search(t):
         return False, "filler"
     if title:
@@ -362,7 +362,7 @@ SYSTEM_HI = ("Translate the English text into simple Hindi (Devanagari script). 
              "places and organisations. Do not add or remove information. Output only the Hindi translation.")
 
 
-SUMMARY_RULES = "v2"
+SUMMARY_RULES = "v3"
 
 # automatic alerts and guides read the same every time; a summary adds nothing
 _TEMPLATED = re.compile(r"\b(advisory|forecast|warning for|watch for|magnitude|earthquake of|general election:|polling place|how to vote|live updates?)\b", re.I)
