@@ -4,6 +4,7 @@ import { load } from '../data'
 import { t } from '../i18n'
 import { ago, cat, compact, Ext, flag, fmtDate, VERIF } from '../util'
 import { EXPLAINER_KEYS, VerifBadge } from './ui'
+import { ExplainButton } from './explain'
 
 // Plain-language meaning of each topic, for readers new to the subject.
 export const TOPIC_PLAIN: Record<string, string> = {
@@ -78,7 +79,10 @@ export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, 
           <VerifBadge v={e.verification} />
           {e.outlets > 1 && <span>📰 {e.outlets} outlets</span>}
           {src && <Ext href={src.u}>{src.p || 'source'} ↗</Ext>}
-          <button type="button" className={`bg-btn ${open ? 'on' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>💡 {open ? 'Hide background' : 'Background'}</button>
+          <span className="story-actions">
+            <button type="button" className={`bg-btn ${open ? 'on' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>💡 {open ? 'Hide' : 'Background'}</button>
+            <ExplainButton e={e} names={names} />
+          </span>
         </div>
         {open && <Background e={e} names={names} />}
       </div>

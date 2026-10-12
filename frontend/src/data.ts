@@ -14,7 +14,11 @@ export type Event = {
   started_at?: string | null; first_detected: string; last_updated: string; origin: string; verification: string; confidence: number
   magnitude?: number | null; revision: number; outlets: number; why: string[]; refs: Ref[]; n_related: number
 }
-export type EventDetail = Event & { description?: string | null; timeline: (Ref & { o: boolean; dup: boolean })[]; related: Rel[]; revisions: { revision: number; changed_at: string }[] }
+export type Wiki = { title: string; extract: string; url: string; source?: string; license?: string }
+export type Arc = { reports: number; first_seen: string; first_title: string; first_url?: string | null; first_publisher?: string | null
+  earlier: { id: string; title: string; date: string; url?: string | null; publisher?: string | null; verification: string }[]; weekly: [string, number][] }
+export type EventDetail = Event & { description?: string | null; timeline: (Ref & { o: boolean; dup: boolean })[]; related: Rel[]; revisions: { revision: number; changed_at: string }[]
+  context?: { background: Wiki[]; places: (Wiki & { iso2: string })[]; arc: Arc | null } }
 export type Article = { id: string; t: string; u: string; p?: string; x?: string | null; d: string; c: string; k: string[]; cl: string; n: number; o: boolean; s: string; l?: string; w?: string[] }
 export type Item = { t: string; u: string; p?: string; d: string; c: string; k: string[]; o: boolean }
 export type Evidence = { type: string; title: string; url?: string; publisher?: string; published_at?: string; detail?: string }
@@ -41,7 +45,7 @@ export type Briefing = {
 export type CountryProfile = {
   generated_at: string; country: CountrySummary; meta_source?: string; meta_updated?: string; currency?: string | null
   indicators: Record<string, Indicator>; events: Event[]; news: Article[]; signals: Signal[]; volume: [string, number][]
-  briefings: Record<string, Briefing>; risk?: Risk | null
+  briefings: Record<string, Briefing>; risk?: Risk | null; about?: Wiki | null
 }
 export type Source = {
   id: string; name: string; kind: string; type?: string; category?: string | null; country?: string | null; url: string; enabled: boolean; tags: string[]

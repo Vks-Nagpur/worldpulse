@@ -117,6 +117,8 @@ export function Country({ code }: { code: string }) {
           {data.meta_source && <span className="badge">Facts: {data.meta_source}</span>}
         </div>
       </div>
+      {data.about && <div className="card" style={{ marginBottom: 14 }}><h3>📖 About {c.name}</h3><p className="muted" style={{ margin: '6px 0' }}>{data.about.extract}</p>
+        <a className="small" href={data.about.url} target="_blank" rel="noopener noreferrer">From Wikipedia (CC BY-SA) ↗</a></div>}
       {data.risk ? <div style={{ marginBottom: 14 }}><RiskCard r={data.risk} /></div> :
         <div className="banner info"><span>🟢</span><div className="small">No risk component crossed its threshold for {c.name} in monitored data.</div></div>}
       <div className="grid g4" style={{ marginBottom: 14 }}>

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import PROCESSING_VERSION, __version__
-from . import insights
+from . import context, insights
 from .briefings import country_briefing
 import os
 from xml.sax.saxutils import escape
@@ -112,6 +112,10 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
     evrows = conn.execute("SELECT * FROM events WHERE last_updated >= ? ORDER BY last_updated DESC LIMIT 1200", (_since(days=7),)).fetchall()
     events = []
     titles = {e["id"]: e["title"] for e in evrows}
+    try:
+        arcs = context.ArcIndex(conn)
+    except Exception:
+        arcs = None
     for e in evrows:
         refs = uj(e["source_refs"], [])
         related = sorted(rels.get(e["id"], []), key=lambda x: -x["confidence"])[:8]
@@ -138,7 +142,13 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                   "timeline": timeline,
                   "related": [{**r, "title": titles.get(r["to"])} for r in related if r["to"] in titles],
                   "revisions": [{"revision": r["revision"], "changed_at": r["changed_at"]} for r in
-                                conn.execute("SELECT revision, changed_at FROM event_revisions WHERE event_id=? ORDER BY revision", (e["id"],))]}
+                                conn.execute("SELECT revision, changed_at FROM event_revisions WHERE event_id=? ORDER BY revision", (e["id"],))],
+                  "context": {
+                      "background": [b for b in (context.cached(conn, f"topic:{q}") for q in context.topics_for(e["title"])) if b],
+                      "places": [dict(b, iso2=c) for c in [x for x in dict.fromkeys([e["country"], *uj(e["related_countries"], [])]) if x][:2]
+                                 if (b := context.cached(conn, f"country:{c}"))],
+                      "arc": arcs.arc(e["title"], e["country"], e["id"]) if arcs and e["origin"] == "news_cluster" else None,
+                  }}
         _write(out / "events" / f"{e['id']}.json", detail)
     sizes["events.json"] = _write(out / "events.json", {"generated_at": gen, "window_days": 7, "events": events})
 
@@ -211,7 +221,7 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
         profile = {"generated_at": gen, "country": entry, "meta_source": c["meta_source"], "meta_updated": c["meta_updated"],
                    "indicators": ind.get(iso2, {}), "events": evs[:80], "news": news_by_c.get(iso2, [])[:60],
                    "signals": sig_by_c.get(iso2, [])[:30], "volume": vol.get(iso2, []), "risk": risk_by.get(iso2),
-                   "currency": insights.CURRENCY_OF.get(iso2),
+                   "currency": insights.CURRENCY_OF.get(iso2), "about": context.cached(conn, f"country:{iso2}"),
                    "briefings": {h: country_briefing(conn, iso2, h) for h in (24, 168, 720)} if (evs or sig_by_c.get(iso2)) else {}}
         _write(out / "countries" / f"{iso2}.json", profile)
     sizes["countries.json"] = _write(out / "countries.json", {"generated_at": gen, "countries": clist})

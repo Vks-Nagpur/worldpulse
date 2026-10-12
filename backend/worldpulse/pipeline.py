@@ -7,7 +7,7 @@ import time
 import traceback
 from pathlib import Path
 
-from . import alerts, analyze, briefings, collect, export, insights
+from . import alerts, analyze, briefings, collect, context, export, insights
 from .db import connect, log_error
 from .processing.normalize import now_iso
 
@@ -43,6 +43,7 @@ def run(db_path: Path = DEFAULT_DB, out: Path | None = DEFAULT_OUT, force: bool 
     _stage(conn, "signals", lambda: analyze.detect_signals(conn, registry), log)
     _stage(conn, "alerts", lambda: alerts.evaluate(conn), log)
     bs = _stage(conn, "briefings", lambda: briefings.generate_all(conn, registry, use_ai=use_ai), log) or []
+    _stage(conn, "context", lambda: context.refresh(conn, log), log)
     _stage(conn, "prune", lambda: analyze.prune(conn), log)
     q = _stage(conn, "quality", lambda: insights.quality(conn, registry), log)
     if q and q.get("problems"):

@@ -5,6 +5,7 @@ import { t } from '../i18n'
 import { DEFAULT_FILTERS, setFilters, toggleWatch, useFilters, watchStore, type Watch } from '../store'
 import { Badge, cat, downloadCSV, evidenceLabel, Ext, FOCUS, flag, fmtDate, num, pct, SIG_STATUS, sortEvents, tone, VERIF } from '../util'
 import { Sparkline } from './charts'
+import { ExplainButton } from './explain'
 
 // ---------------------------------------------------------------- layout bits
 export function PageHead({ title, sub, actions }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
@@ -159,6 +160,7 @@ export function EventItem({ e, names }: { e: Event; names?: Record<string, Count
           <span title={e.started_at || ''}>{fmtDate(e.started_at || e.first_detected)}</span>
           {ref && <Ext href={ref.u}>{ref.p || 'source'} ↗</Ext>}
           {e.n_related > 0 && <span>🔗 {e.n_related}</span>}
+          {names && <ExplainButton e={e} names={names} small />}
         </div>
       </div>
     </div>

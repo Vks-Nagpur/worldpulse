@@ -44,7 +44,7 @@ export function Today() {
         <section>
           <div className="section-head">
             <h2 className="section-title">{fx.icon} {f.focus === 'all' ? 'What’s going on in the world' : t(fx.label)}{where ? ` — ${where}` : ''}</h2>
-            <span className="small muted">Best-supported first · tap 💡 Background for context</span>
+            <span className="small muted">Best-supported first · tap 🧠 Understand this for a simple explanation</span>
           </div>
           {ev.error ? <ErrorBox error={ev.error} /> : !rows ? <Loading rows={6} /> : !rows.length ? <Empty>{t('Nothing matches these filters.')} Try a longer time window or another topic.</Empty> : (
             <div className="stories">

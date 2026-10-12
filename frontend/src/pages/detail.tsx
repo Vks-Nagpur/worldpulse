@@ -3,6 +3,7 @@ import { DotMap, LineChart, StackedBars } from '../components/charts'
 import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, VerifBadge } from '../components/ui'
 import type { Article, EventDetail as ED, History, Signal } from '../data'
 import { TOPIC_PLAIN } from '../components/story'
+import { ExplainButton } from '../components/explain'
 import { useData } from '../data'
 import { t } from '../i18n'
 import { useFilters } from '../store'
@@ -22,7 +23,7 @@ export function EventDetail({ id }: { id: string }) {
   return (
     <>
       <PageHead title={e.title} sub={<span className="row"><VerifBadge v={e.verification} /><CatLabel c={e.category} /><span className="small">{VERIF[e.verification]?.tip}</span></span>}
-        actions={<ShareButton title={e.title} path={`/event/${e.id}`} />} />
+        actions={<><ExplainButton e={e} names={by} /><ShareButton title={e.title} path={`/event/${e.id}`} /></>} />
       <div className="grid g2">
         <div className="card"><h3>Details</h3>
           <div className="bg-panel" style={{ marginTop: 6, marginBottom: 10 }}><div className="bg-row"><span className="bg-k">💡 In simple words</span><span>{TOPIC_PLAIN[e.category] || TOPIC_PLAIN.general} {VERIF[e.verification]?.tip}</span></div></div>
