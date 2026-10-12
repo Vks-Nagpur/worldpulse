@@ -104,6 +104,8 @@ export function FilterBar({ events, hideFocus }: { events?: Event[]; hideFocus?:
     events?.forEach((e) => e.country && (!f.region || by[e.country]?.region === f.region) && m.set(e.country, (m.get(e.country) || 0) + 1))
     return [...m.entries()].sort((a, b) => b[1] - a[1])
   }, [events, f.region, by])
+  const [more, setMore] = useState(false)
+  const extra = (f.region ? 1 : 0) + (f.hours !== 168 ? 1 : 0) + (f.support !== 'all' ? 1 : 0) + (f.q ? 1 : 0)
   const pills: [string, () => void][] = []
   if (f.region) pills.push([f.region, () => setFilters({ region: '' })])
   if (f.country) pills.push([`${flag(f.country)} ${by[f.country]?.name || f.country}`, () => setFilters({ country: '' })])
@@ -113,19 +115,24 @@ export function FilterBar({ events, hideFocus }: { events?: Event[]; hideFocus?:
   return (
     <section className="filters no-print" aria-label="Filters">
       {!hideFocus && <div className="focus">{FOCUS.map((x) => <button key={x.key} type="button" className={`chip ${f.focus === x.key ? 'on' : ''}`} onClick={() => setFilters({ focus: x.key })}>{x.icon} {t(x.label)}</button>)}</div>}
-      <div className="frow">
-        <select className="input" value={f.region} aria-label="Region" onChange={(e) => setFilters({ region: e.target.value, country: '' })}>
-          <option value="">🌍 {t('All regions')}</option>{regions.map((r) => <option key={r}>{r}</option>)}</select>
+      <div className="filter-line">
         <select className="input" value={f.country} aria-label="Country" onChange={(e) => setFilters({ country: e.target.value })}>
-          <option value="">🏳️ {t('All countries')}</option>
+          <option value="">🌍 {t('All countries')}</option>
           {f.country && !counts.some((c) => c[0] === f.country) && <option value={f.country}>{flag(f.country)} {by[f.country]?.name || f.country}</option>}
           {counts.map(([iso, n]) => <option key={iso} value={iso}>{flag(iso)} {by[iso]?.name || iso} ({n})</option>)}</select>
-        <select className="input" value={f.hours} aria-label="Time window" onChange={(e) => setFilters({ hours: Number(e.target.value) })}>
-          <option value={24}>⏱ {t('Last 24 hours')}</option><option value={72}>⏱ {t('Last 3 days')}</option><option value={168}>⏱ {t('Last 7 days')}</option></select>
-        <select className="input" value={f.support} aria-label="Support" onChange={(e) => setFilters({ support: e.target.value as typeof f.support })}>
-          <option value="all">✔ {t('Any support')}</option><option value="multi">✔ {t('2+ outlets or official')}</option><option value="official">✔ {t('Official or measured only')}</option></select>
-        <input className="input" type="search" placeholder={`🔎 ${t('Search words…')}`} value={f.q} onChange={(e) => setFilters({ q: e.target.value })} aria-label="Search words" />
+        <button type="button" className={`filter-toggle ${more ? 'on' : ''}`} onClick={() => setMore(!more)} aria-expanded={more}>⚙ {t('More filters')}{extra ? ` (${extra})` : ''}</button>
       </div>
+      {more && (
+        <div className="filter-more">
+          <select className="input" value={f.region} aria-label="Region" onChange={(e) => setFilters({ region: e.target.value, country: '' })}>
+            <option value="">🗺 {t('All regions')}</option>{regions.map((r) => <option key={r}>{r}</option>)}</select>
+          <select className="input" value={f.hours} aria-label="Time window" onChange={(e) => setFilters({ hours: Number(e.target.value) })}>
+            <option value={24}>⏱ {t('Last 24 hours')}</option><option value={72}>⏱ {t('Last 3 days')}</option><option value={168}>⏱ {t('Last 7 days')}</option></select>
+          <select className="input" value={f.support} aria-label="Support" onChange={(e) => setFilters({ support: e.target.value as typeof f.support })}>
+            <option value="all">✔ {t('Any support')}</option><option value="multi">✔ {t('2+ outlets or official')}</option><option value="official">✔ {t('Official or measured only')}</option></select>
+          <input className="input" type="search" placeholder={`🔎 ${t('Search words…')}`} value={f.q} onChange={(e) => setFilters({ q: e.target.value })} aria-label="Search words" />
+        </div>
+      )}
       {pills.length > 0 && (
         <div className="active-filters">{t('Filtered by:')}
           {pills.map(([l, clear]) => <button key={l} type="button" className="pill" onClick={clear}>{l} ✕</button>)}

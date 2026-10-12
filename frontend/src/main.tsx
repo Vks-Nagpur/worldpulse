@@ -66,13 +66,13 @@ function useInstall() {
   return evt ? () => { evt.prompt(); setEvt(null) } : null
 }
 
-const NAV: [string, string, string, string][] = [
-  ['Monitor', '/', '🏠', 'Today'], ['Monitor', '/markets', '📈', 'Markets'], ['Monitor', '/energy', '🛢️', 'Energy'], ['Monitor', '/trade', '🚢', 'Trade & shipping'],
-  ['Monitor', '/conflict', '🛡️', 'Conflict & security'], ['Monitor', '/risk', '🚦', 'Country risk'], ['Monitor', '/countries', '🌐', 'Countries'], ['Monitor', '/signals', '⚡', 'Signals'],
-  ['Intelligence', '/policy', '🏛️', 'Policy & elections'], ['Intelligence', '/briefings', '📋', 'Briefings'], ['Intelligence', '/news', '📰', 'All news'], ['Intelligence', '/ask', '💬', 'Ask WorldPulse'],
-  ['Intelligence', '/search', '🔎', 'Search'], ['You', '/watch', '⭐', 'Watchlist & alerts'], ['You', '/learn', '📘', 'Learn'], ['You', '/quakes', '🌋', 'Earthquakes'], ['You', '/about', '🧪', 'About & sources'],
+const PRIMARY: [string, string, string][] = [['/', '🌍', 'Home'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/briefings', '📋', 'Briefings']]
+const EXPLORE: [string, [string, string, string][]][] = [
+  ['Topics', [['/conflict', '🛡️', 'Conflict & security'], ['/trade', '🚢', 'Trade & shipping'], ['/energy', '🛢️', 'Energy'], ['/policy', '🏛️', 'Policy & elections'], ['/quakes', '🌋', 'Earthquakes']]],
+  ['Analysis', [['/risk', '🚦', 'Country risk'], ['/signals', '⚡', 'Signals'], ['/news', '📰', 'All news'], ['/markets?tab=fx', '💱', 'Currency watch']]],
+  ['Tools', [['/ask', '💬', 'Ask WorldPulse'], ['/search', '🔎', 'Search'], ['/watch', '⭐', 'Watchlist & alerts'], ['/learn', '📘', 'Learn'], ['/about', '🧪', 'About & sources']]],
 ]
-const BOTTOM: [string, string, string][] = [['/', '🏠', 'Today'], ['/markets', '📈', 'Markets'], ['/trade', '🚢', 'Trade'], ['/conflict', '🛡️', 'Conflict']]
+const BOTTOM: [string, string, string][] = [['/', '🌍', 'Home'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/ask', '💬', 'Ask']]
 
 function Router({ path, query }: { path: string; query: string }) {
   const parts = path.split('/').filter(Boolean)
@@ -116,46 +116,61 @@ function App() {
 
   if (path.startsWith('/embed/')) return <Suspense fallback={<Loading rows={3} />}><EmbedWidget id={path.split('/')[2] || 'prices'} /></Suspense>
 
-  const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href) || (href === '/countries' && path.startsWith('/country/')) || (href === '/signals' && path.startsWith('/signal/')))
+  const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href.split('?')[0]) || (href === '/countries' && (path.startsWith('/country/') || path === '/risk')) || (href === '/signals' && path.startsWith('/signal/')))
+  const exploreActive = EXPLORE.some(([, items]) => items.some(([h]) => active(h))) && !PRIMARY.some(([h]) => active(h))
   const stale = meta.data && hoursSince(meta.data.generated_at) > 24
-  let group = ''
   return (
     <div className="app">
-      <aside className="side">
-        <a className="brand" href="#/"><div className="brand-logo"><Logo /></div><div><b>WorldPulse</b><small>Markets · trade · energy · conflict</small></div></a>
-        <nav className="nav">
-          {NAV.map(([g, href, icon, label]) => {
-            const head = g !== group ? <div className="nav-group">{(group = g)}</div> : null
-            return <div key={href}>{head}<a href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}
-              {href === '/signals' && meta.data ? <span className="count">{meta.data.counts.signals_30d}</span> : null}</a></div>
-          })}
-        </nav>
-        <div className="side-foot">{meta.data ? <>{t('Updated')} {ago(meta.data.generated_at)}<br />v{meta.data.app_version}</> : t('Loading…')}<br />Free &amp; open source · public data only</div>
-      </aside>
-      <main className="main">
-        <div className="topbar">
-          <a className="brand mobile-brand" href="#/" style={{ padding: 0 }}><div className="brand-logo" style={{ width: 32, height: 32 }}><Logo /></div></a>
+      <header className="nav-top">
+        <div className="nav-inner">
+          <a className="brand" href="#/" aria-label="WorldPulse home"><div className="brand-logo"><Logo /></div><b>WorldPulse</b></a>
+          <nav className="nav-links" aria-label="Main">
+            {PRIMARY.map(([href, , label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}>{t(label)}</a>)}
+            <div className="explore">
+              <button type="button" className={`explore-btn ${exploreActive || more ? 'active' : ''}`} onClick={() => setMore(!more)} aria-expanded={more}>{t('Explore')} ▾</button>
+              {more && (
+                <>
+                  <div className="explore-bg" onClick={() => setMore(false)} />
+                  <div className="explore-menu" role="menu">
+                    {EXPLORE.map(([g, items]) => (
+                      <div key={g}><div className="explore-h">{t(g)}</div>
+                        {items.map(([href, icon, label]) => <a key={href} role="menuitem" href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}</a>)}</div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </nav>
           <SearchBox />
-          <button type="button" className="icon-btn" onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} aria-label={t('Language')} title={t('Language')}>{lang === 'hi' ? 'EN' : 'हि'}</button>
-          <button type="button" className="icon-btn" onClick={toggle} aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}<span className="hide-sm">{theme === 'dark' ? t('Light') : t('Dark')}</span></button>
-          {install && <button type="button" className="icon-btn hide-sm" onClick={install}>⬇ {t('Install app')}</button>}
+          <div className="nav-actions">
+            <button type="button" className="icon-btn" onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} aria-label={t('Language')} title={t('Language')}>{lang === 'hi' ? 'EN' : 'हि'}</button>
+            <button type="button" className="icon-btn" onClick={toggle} aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}</button>
+            {install && <button type="button" className="icon-btn hide-sm" onClick={install}>⬇ {t('Install app')}</button>}
+          </div>
         </div>
+      </header>
+      <main className="main">
         {stale && <div className="soft-note">🕒 News on this page was last updated {ago(meta.data!.generated_at)}. It refreshes automatically.</div>}
         <Suspense fallback={<Loading rows={6} />}><div className="page" key={path}><Router path={path} query={query} /></div></Suspense>
+        <footer className="site-foot">WorldPulse · free &amp; open source · built only from public sources{meta.data ? ` · updated ${ago(meta.data.generated_at)}` : ''} · <a href="#/about">About &amp; sources</a></footer>
       </main>
       <nav className="bottom-nav" aria-label="Main">
         {BOTTOM.map(([href, icon, label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}</a>)}
-        <button type="button" className={more ? 'active' : ''} onClick={() => setMore(true)}><span>☰</span>{t('More')}</button>
+        <button type="button" className={more || exploreActive ? 'active' : ''} onClick={() => setMore(true)}><span>☰</span>{t('More')}</button>
       </nav>
       {more && (
-        <>
+        <div className="mobile-only">
           <div className="sheet-bg" onClick={() => setMore(false)} />
           <div className="sheet" role="dialog" aria-label="More pages">
             <div className="sheet-grip" />
-            <div className="sheet-grid">{NAV.filter(([, href]) => !BOTTOM.some((b) => b[0] === href)).map(([, href, icon, label]) => <a key={href} href={`#${href}`}><span>{icon}</span>{t(label)}</a>)}</div>
-            {install && <button type="button" className="btn" style={{ width: '100%', marginTop: 12 }} onClick={install}>⬇ {t('Install app')}</button>}
+            {EXPLORE.map(([g, items]) => (
+              <div key={g} style={{ marginBottom: 10 }}><div className="explore-h">{t(g)}</div>
+                <div className="sheet-grid">{items.map(([href, icon, label]) => <a key={href} href={`#${href}`}><span>{icon}</span>{t(label)}</a>)}</div></div>
+            ))}
+            <a href="#/briefings" className="btn ghost" style={{ display: 'block', textAlign: 'center', marginTop: 4 }}>📋 {t('Briefings')}</a>
+            {install && <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={install}>⬇ {t('Install app')}</button>}
           </div>
-        </>
+        </div>
       )}
       <ToastHost />
       <Welcome />

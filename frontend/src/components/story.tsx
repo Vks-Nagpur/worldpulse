@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { CountrySummary, Event, EventDetail } from '../data'
 import { load } from '../data'
-import { t } from '../i18n'
+import { t, useLang } from '../i18n'
 import { ago, cat, compact, Ext, flag, fmtDate, VERIF } from '../util'
 import { EXPLAINER_KEYS, VerifBadge } from './ui'
 import { ExplainButton } from './explain'
@@ -59,11 +59,59 @@ export function Background({ e, names }: { e: Event; names: Record<string, Count
   )
 }
 
-export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, CountrySummary>; rank?: number }) {
-  const [open, setOpen] = useState(false)
-  const c = cat(e.category)
-  const src = e.refs[0]
+// Facts for a story, shown the same way everywhere: small labelled chips.
+export function StoryFacts({ e, names, dark }: { e: Event; names: Record<string, CountrySummary>; dark?: boolean }) {
   const place = e.country ? names[e.country]?.name || e.country : null
+  const v = VERIF[e.verification]
+  const tone = e.verification === 'single_source_report' ? 'warn' : 'ok'
+  return (
+    <div className="facts">
+      {place && <a className="fact" href={`#/country/${e.country}`}>{flag(e.country)} {place}</a>}
+      <span className="fact" title={fmtDate(e.started_at || e.first_detected)}>🕒 {ago(e.started_at || e.first_detected)}</span>
+      {e.verification === 'multi_source_reporting' && e.outlets > 1
+        ? <span className={`fact ${dark ? '' : 'ok'}`} title={v?.tip}>✔ {e.outlets} outlets report this</span>
+        : <>
+          <span className={`fact ${dark ? '' : tone}`} title={v?.tip}>{tone === 'ok' ? '✔' : '⚠'} {t(v?.label || e.verification)}</span>
+          {e.outlets > 1 && <span className="fact">📰 {e.outlets} outlets</span>}
+        </>}
+      {e.who?.slice(0, 2).map((w) => <span key={w} className="fact acc">👤 {w}</span>)}
+      {e.disputed && <span className="fact warn" title="Outlets report different numbers — see Understand this">⚖ Figures differ</span>}
+    </div>
+  )
+}
+
+export function storySummary(e: Event, lang: string): { text: string; by: string } | null {
+  if (lang === 'hi' && e.sum_hi) return { text: e.sum_hi, by: 'Checked summary' }
+  if (e.sum) return { text: e.sum, by: e.ai ? 'Checked summary' : e.sum_by ? `From ${e.sum_by}` : '' }
+  return null
+}
+
+export function LeadStory({ e, names }: { e: Event; names: Record<string, CountrySummary> }) {
+  const lang = useLang()
+  const c = cat(e.category)
+  const sm = storySummary(e, lang)
+  const src = e.refs[0]
+  return (
+    <article className="lead">
+      <div className="lead-kicker"><span className="live"><i /> Top story</span><span>{c.icon} {c.label}</span></div>
+      <h2><a href={`#/event/${encodeURIComponent(e.id)}`}>{e.title}</a></h2>
+      {sm && <p className="lead-sum">{sm.text}</p>}
+      <div className="story-foot">
+        <StoryFacts e={e} names={names} dark />
+        <span className="row" style={{ gap: 8 }}>
+          {src && <Ext href={src.u}>{src.p || 'Source'} ↗</Ext>}
+          <ExplainButton e={e} names={names} />
+        </span>
+      </div>
+    </article>
+  )
+}
+
+export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, CountrySummary>; rank?: number }) {
+  const lang = useLang()
+  const c = cat(e.category)
+  const sm = storySummary(e, lang)
+  const src = e.refs[0]
   return (
     <article className="story">
       <div className="story-bar" style={{ background: c.color }} />
@@ -71,20 +119,14 @@ export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, 
         <div className="story-top">
           {rank != null && <span className="story-rank">{rank}</span>}
           <span className="story-cat" style={{ color: c.color }}>{c.icon} {c.label}</span>
-          {place && <a className="story-place" href={`#/country/${e.country}`}>{flag(e.country)} {place}</a>}
-          <span className="faint">· {ago(e.started_at || e.first_detected)}</span>
+          {src?.p && <span className="faint">· {src.p}</span>}
         </div>
         <h3 className="story-title"><a href={`#/event/${encodeURIComponent(e.id)}`}>{e.title}</a></h3>
-        <div className="story-meta">
-          <VerifBadge v={e.verification} />
-          {e.outlets > 1 && <span>📰 {e.outlets} outlets</span>}
-          {src && <Ext href={src.u}>{src.p || 'source'} ↗</Ext>}
-          <span className="story-actions">
-            <button type="button" className={`bg-btn ${open ? 'on' : ''}`} onClick={() => setOpen(!open)} aria-expanded={open}>💡 {open ? 'Hide' : 'Background'}</button>
-            <ExplainButton e={e} names={names} />
-          </span>
+        {sm && <p className="story-sum">{sm.text}</p>}
+        <div className="story-foot">
+          <StoryFacts e={e} names={names} />
+          <ExplainButton e={e} names={names} small />
         </div>
-        {open && <Background e={e} names={names} />}
       </div>
     </article>
   )

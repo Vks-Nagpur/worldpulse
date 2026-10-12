@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { StoryCard } from '../components/story'
+import { LeadStory, StoryCard } from '../components/story'
 import { CountryBars, Empty, ErrorBox, FilterBar, Loading, PageHead, ShareButton, SignalItem, Tiles, useCountries, VerifBadge } from '../components/ui'
 import { greeting, userName, useUser } from '../components/welcome'
 import type { Changes, Event, MarketLatest, Meta, Signal } from '../data'
@@ -44,16 +44,18 @@ export function Today() {
         <section>
           <div className="section-head">
             <h2 className="section-title">{fx.icon} {f.focus === 'all' ? 'What’s going on in the world' : t(fx.label)}{where ? ` — ${where}` : ''}</h2>
-            <span className="small muted">Best-supported first · tap 🧠 Understand this for a simple explanation</span>
+            <span className="small muted">Best-supported first · tap 🧠 for a simple explanation</span>
           </div>
           {ev.error ? <ErrorBox error={ev.error} /> : !rows ? <Loading rows={6} /> : !rows.length ? <Empty>{t('Nothing matches these filters.')} Try a longer time window or another topic.</Empty> : (
             <div className="stories">
-              {rows.slice(0, n).map((e, i) => <StoryCard key={e.id} e={e} names={by} rank={i + 1} />)}
+              <LeadStory e={rows[0]} names={by} />
+              {rows.slice(1, n).map((e, i) => <StoryCard key={e.id} e={e} names={by} rank={i + 2} />)}
               {rows.length > n && <button type="button" className="icon-btn more-btn" onClick={() => setN(n + 15)}>{t('Show more')} ({rows.length - n})</button>}
             </div>
           )}
         </section>
         <aside className="stack">
+          {rows && rows.length > 0 && <Glance rows={rows} />}
           <WatchPanel events={ev.data?.events} />
           <ChangesCard ch={ch.data} />
           <div className="card"><h3>{t('Where it is happening')}</h3><p className="sub">Stories per country for these filters. Tap a country to see only its news.</p><CountryBars rows={rows} /></div>
@@ -113,6 +115,21 @@ function WatchPanel({ events }: { events?: Event[] }) {
         return <div key={tp} style={{ padding: '8px 0', borderTop: '1px solid var(--border)' }}><b style={{ color: cat(tp).color }}>{cat(tp).icon} {cat(tp).label}</b>
           {e && <div className="small" style={{ marginTop: 3 }}><a href={`#/event/${encodeURIComponent(e.id)}`} style={{ color: 'var(--text)' }}>{e.title}</a> <VerifBadge v={e.verification} /></div>}</div>
       })}
+    </div>
+  )
+}
+
+function Glance({ rows }: { rows: Event[] }) {
+  const countries = new Set(rows.map((e) => e.country).filter(Boolean)).size
+  const confirmed = rows.filter((e) => e.verification !== 'single_source_report').length
+  return (
+    <div className="card">
+      <h3>📊 {t('At a glance')}</h3>
+      <div className="glance" style={{ marginTop: 8 }}>
+        <div><b>{rows.length}</b><span>stories</span></div>
+        <div><b>{countries}</b><span>countries</span></div>
+        <div><b>{confirmed}</b><span>confirmed by 2+ sources or official</span></div>
+      </div>
     </div>
   )
 }

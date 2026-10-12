@@ -137,6 +137,17 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
         light["who"] = [x["name"] for x in ents if x["kind"] in ("person", "organisation", "group")][:3]
         light["disputed"] = bool(disputes)
         light["ai"] = bool(summ)
+        # one-line summary for cards: the checked AI summary, else the outlet's own excerpt (quoted, not rewritten)
+        if summ:
+            light["sum"] = summ["text"][:280]
+            if summ.get("text_hi"):
+                light["sum_hi"] = summ["text_hi"][:280]
+        elif e["cluster_id"]:
+            x = conn.execute("""SELECT excerpt, publisher FROM articles WHERE cluster_id=? AND excerpt IS NOT NULL AND length(excerpt) > 60
+                                ORDER BY is_official DESC, coalesce(published_at, collected_at) LIMIT 1""", (e["cluster_id"],)).fetchone()
+            if x and x["excerpt"][:60].lower() not in e["title"].lower():
+                light["sum"] = x["excerpt"][:240].rsplit(" ", 1)[0] + ("…" if len(x["excerpt"]) > 240 else "")
+                light["sum_by"] = x["publisher"]
         events.append(light)
         timeline = []
         if e["cluster_id"]:

@@ -155,8 +155,11 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist
+          name: github-pages-quick
       - id: deploy
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-quick
 
   pages:
     # Needs Settings → Pages → Source: GitHub Actions (one-time).
