@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CountrySummary, Event, EventDetail } from '../data'
 import { load } from '../data'
 import { t, useLang } from '../i18n'
@@ -86,14 +86,14 @@ export function storySummary(e: Event, lang: string): { text: string; by: string
   return null
 }
 
-export function LeadStory({ e, names }: { e: Event; names: Record<string, CountrySummary> }) {
+export function LeadStory({ e, names, n, of }: { e: Event; names: Record<string, CountrySummary>; n?: number; of?: number }) {
   const lang = useLang()
   const c = cat(e.category)
   const sm = storySummary(e, lang)
   const src = e.refs[0]
   return (
     <article className="lead">
-      <div className="lead-kicker"><span className="live"><i /> Top story</span><span>{c.icon} {c.label}</span></div>
+      <div className="lead-kicker"><span className="live"><i /> Top story{n && of ? ` ${n}/${of}` : ''}</span><span>{c.icon} {c.label}</span></div>
       <h2><a href={`#/event/${encodeURIComponent(e.id)}`}>{e.title}</a></h2>
       {sm && <p className="lead-sum">{sm.text}</p>}
       <div className="story-foot">
@@ -130,4 +130,58 @@ export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, 
       </div>
     </article>
   )
+}
+
+/** Swipeable slider of the biggest stories. Native scroll-snap so swiping feels natural on phones;
+ *  arrows and dots on laptops; moves on by itself every 8 s until the reader touches it. */
+export function TopSlider({ items, names }: { items: Event[]; names: Record<string, CountrySummary> }) {
+  const track = useRef<HTMLDivElement>(null)
+  const [i, setI] = useState(0)
+  const [auto, setAuto] = useState(true)
+  const go = (k: number) => {
+    const el = track.current
+    if (!el) return
+    const n = (k + items.length) % items.length
+    el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' })
+  }
+  useEffect(() => {
+    const el = track.current
+    if (!el) return
+    const on = () => setI(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))
+    el.addEventListener('scroll', on, { passive: true })
+    return () => el.removeEventListener('scroll', on)
+  }, [])
+  useEffect(() => {
+    if (!auto || items.length < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const id = setInterval(() => !document.hidden && go(i + 1), 8000)
+    return () => clearInterval(id)
+  }, [auto, i, items.length])
+  useEffect(() => { track.current?.scrollTo({ left: 0 }); setI(0) }, [items])
+  const stop = () => setAuto(false)
+  return (
+    <section className="slider" aria-roledescription="carousel" aria-label="Top stories">
+      <div className="slider-track" ref={track} onPointerDown={stop} onTouchStart={stop} onWheel={stop}>
+        {items.map((e, k) => <div className="slide" key={e.id}><LeadStory e={e} names={names} n={k + 1} of={items.length} /></div>)}
+      </div>
+      {items.length > 1 && <>
+        <button type="button" className="slider-arrow prev" aria-label="Previous story" onClick={() => { stop(); go(i - 1) }}>‹</button>
+        <button type="button" className="slider-arrow next" aria-label="Next story" onClick={() => { stop(); go(i + 1) }}>›</button>
+        <div className="slider-dots">{items.map((e, k) => <button type="button" key={e.id} className={k === i ? 'on' : ''} aria-label={`Story ${k + 1}`} onClick={() => { stop(); go(k) }} />)}</div>
+      </>}
+    </section>
+  )
+}
+
+/** The biggest stories, one per subject: skip a story if an earlier pick has the same country and topic. */
+export function topPicks(rows: Event[], n = 6): Event[] {
+  const out: Event[] = []
+  const seen = new Set<string>()
+  for (const e of rows) {
+    if (e.verification === 'single_source_report') continue
+    const k = `${e.country || ''}|${e.category}`
+    if (seen.has(k)) continue
+    seen.add(k); out.push(e)
+    if (out.length >= n) break
+  }
+  return out.length ? out : rows.slice(0, 1)
 }

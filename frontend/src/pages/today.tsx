@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { LeadStory, StoryCard } from '../components/story'
+import { StoryCard, topPicks, TopSlider } from '../components/story'
 import { CountryBars, Empty, ErrorBox, FilterBar, Loading, PageHead, ShareButton, SignalItem, Tiles, useCountries, VerifBadge } from '../components/ui'
 import { greeting, userName, useUser } from '../components/welcome'
 import type { Changes, Event, MarketLatest, Meta, Signal } from '../data'
@@ -26,6 +26,8 @@ export function Today() {
   const [n, setN] = useState(10)
   useEffect(() => setN(10), [f])
   const rows = useMemo(() => (ev.data ? sortEvents(filterEvents(ev.data.events, f, regionOf)) : null), [ev.data, f, regionOf])
+  const top = useMemo(() => (rows ? topPicks(rows) : []), [rows])
+  const rest = useMemo(() => (rows ? rows.filter((e) => !top.includes(e)) : []), [rows, top])
   const sigs = useMemo(() => sg.data?.signals.filter((s) => !['market', 'fx'].includes(s.signal_type) && (!f.country || s.country === f.country) && (!f.region || regionOf(s.country) === f.region))
     .sort((a, b) => b.detected_at.localeCompare(a.detected_at)).slice(0, 4), [sg.data, f, regionOf])
   if (meta.error) return <ErrorBox error={meta.error} />
@@ -48,9 +50,9 @@ export function Today() {
           </div>
           {ev.error ? <ErrorBox error={ev.error} /> : !rows ? <Loading rows={6} /> : !rows.length ? <Empty>{t('Nothing matches these filters.')} Try a longer time window or another topic.</Empty> : (
             <div className="stories">
-              <LeadStory e={rows[0]} names={by} />
-              {rows.slice(1, n).map((e, i) => <StoryCard key={e.id} e={e} names={by} rank={i + 2} />)}
-              {rows.length > n && <button type="button" className="icon-btn more-btn" onClick={() => setN(n + 15)}>{t('Show more')} ({rows.length - n})</button>}
+              <TopSlider items={top} names={by} />
+              {rest.slice(0, n).map((e) => <StoryCard key={e.id} e={e} names={by} />)}
+              {rest.length > n && <button type="button" className="icon-btn more-btn" onClick={() => setN(n + 15)}>{t('Show more')} ({rest.length - n})</button>}
             </div>
           )}
         </section>

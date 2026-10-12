@@ -62,7 +62,7 @@ function answerStatic(q: string, events: Event[], countries: CountrySummary[]): 
   if (hours > 168) gaps.push('The public dataset keeps 7 days of developments; the self-hosted engine keeps 45 days.')
   if (hits.length && hits.slice(0, 12).every((e) => e.verification === 'single_source_report')) gaps.push('All matches are single-outlet reports and remain unverified.')
   if (cats.includes('energy') || cats.includes('financial_markets')) gaps.push('For prices see Markets. News next to a price move does not show that one caused the other.')
-  return { summary: hits.length ? `Found ${hits.length} recorded developments (${scope}; ${topic}; ${period}). The most relevant are listed with their sources.` : `No recorded developments matched (${scope}; ${topic}; ${period}).`,
+  return { summary: hits.length ? `Found ${hits.length} recorded development${hits.length === 1 ? '' : 's'} (${scope}; ${topic}; ${period}). The most relevant are listed with their sources.` : `No recorded developments matched (${scope}; ${topic}; ${period}).`,
     items: hits.slice(0, 12), gaps, interp: { hours, countries: [...cs], categories: cats, keywords: kws } }
 }
 
@@ -75,10 +75,23 @@ export function Ask() {
   const [q, setQ] = useState('')
   const [a, setA] = useState<Answer | null>(null)
   const [apiAns, setApiAns] = useState<{ summary: string } | null>(null)
+  const [heads, setHeads] = useState<Article[] | null>(null)
   const run = async (text: string) => {
     setQ(text)
     if (!ev.data || !list.length) return
-    setA(answerStatic(text, ev.data.events, list))
+    const ans = answerStatic(text, ev.data.events, list)
+    setA(ans)
+    setHeads(null)
+    // Also look through all recent headlines for the words asked about (names of people, companies…)
+    if (ans.interp.keywords.length) {
+      load<{ articles: Article[] }>('news.json').then((n) => {
+        const qy = parseQuery(ans.interp.keywords.join(' '))
+        const seen = new Set(ans.items.map((e) => e.title.toLowerCase()))
+        setHeads(n.articles.map((x) => ({ x, ...score(prepare({ fields: [[x.t, 3], [x.x || '', 1]], date: x.d }), qy) }))
+          .filter((r) => r.matched === qy.terms.length && !seen.has(r.x.t.toLowerCase()))
+          .sort((p, q2) => q2.x.d.localeCompare(p.x.d)).slice(0, 12).map((r) => r.x))
+      }, () => setHeads([]))
+    }
     if (API) { try { setApiAns(await apiQuery(text)) } catch { setApiAns(null) } }
   }
   return (
@@ -87,7 +100,7 @@ export function Ask() {
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row" style={{ flexWrap: 'nowrap' }}><input className="input" style={{ fontSize: 16, padding: '12px 14px' }} placeholder="e.g. What happened in Ukraine this week?" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && q.trim().length > 2 && run(q)} />
           <button type="button" className="btn" disabled={!ev.data} onClick={() => q.trim().length > 2 && run(q)}>{t('Ask')}</button></div>
-        <div className="chips" style={{ marginTop: 10 }}>{EXAMPLES.map((x) => <button type="button" key={x} className="chip" onClick={() => run(x)}>{x}</button>)}</div>
+        <div className="chips wrap" style={{ marginTop: 10 }}>{EXAMPLES.map((x) => <button type="button" key={x} className="chip" onClick={() => run(x)}>{x}</button>)}</div>
       </div>
       {a && (
         <div className="card">
@@ -96,6 +109,14 @@ export function Ask() {
             {a.interp.countries.slice(0, 8).map((c) => <Badge key={c}>{flag(c)} {c}</Badge>)}{a.interp.categories.map((c) => <Badge key={c}>{cat(c).icon} {cat(c).label}</Badge>)}{a.interp.keywords.map((k) => <Badge key={k}>“{k}”</Badge>)}</div>
           <div className="list">{a.items.map((e) => <EventItem key={e.id} e={e} names={by} />)}</div>
           {a.gaps.length > 0 && <div className="banner warn" style={{ marginTop: 12 }}><span>ℹ️</span><div className="small"><b>What is missing or uncertain</b><ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{a.gaps.map((g) => <li key={g}>{g}</li>)}</ul></div></div>}
+          {heads && heads.length > 0 && <>
+            <h3 style={{ marginTop: 16 }}>📰 Recent headlines mentioning {a.interp.keywords.map((k) => `“${k}”`).join(' ')}</h3>
+            <div className="list">{heads.map((h) => (
+              <div key={h.id} className="item"><div style={{ minWidth: 0 }}>
+                <div className="t"><Ext href={h.u}>{h.t}</Ext></div>
+                <div className="small muted">{h.p || 'Source'} · {ago(h.d)}{h.k[0] ? <> · {flag(h.k[0])} {by[h.k[0]]?.name || h.k[0]}</> : null}</div>
+              </div></div>))}</div>
+          </>}
           {apiAns && <div className="small faint">Self-hosted engine: {apiAns.summary}</div>}
         </div>
       )}

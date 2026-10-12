@@ -512,3 +512,23 @@ body { background: var(--bg); }
 .lead .story-foot a:not(.fact) { color: rgba(255, 255, 255, .85); font-weight: 600; font-size: 13.5px; }
 .lead .story-foot a:not(.fact):hover { color: #fff; }
 @media (max-width: 900px) { .page-head .actions .btn, .page-head .actions button { padding: 6px 10px; } }
+.chips.wrap .chip { white-space: normal; text-align: left; max-width: 100%; line-height: 1.35; }
+.chip, .fact { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* top stories slider */
+.slider { position: relative; margin-bottom: 16px; }
+.slider-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 22px; overscroll-behavior-x: contain; }
+.slider-track::-webkit-scrollbar { display: none; }
+.slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; min-width: 0; display: flex; }
+.slide .lead { margin: 0; flex: 1; border-radius: 22px; box-shadow: none; animation: none; min-height: 250px; display: flex; flex-direction: column; justify-content: space-between; }
+.slider-dots { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+.slider-dots button { width: 8px; height: 8px; border-radius: 999px; border: 0; padding: 0; background: var(--border); cursor: pointer; transition: width .25s var(--ease), background .25s; }
+.slider-dots button.on { width: 24px; background: var(--accent); }
+.slider-arrow { position: absolute; top: calc(50% - 20px); transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .92); color: #312e81; font-size: 24px; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, .2); opacity: 0; transition: opacity .2s; z-index: 2; }
+.slider-arrow.prev { left: 10px; } .slider-arrow.next { right: 10px; }
+.slider:hover .slider-arrow, .slider-arrow:focus-visible { opacity: 1; }
+@media (hover: none) { .slider-arrow { display: none; } }
+@media (min-width: 901px) { .slide .lead { padding-left: 56px; padding-right: 56px; } }
+.today-grid > *, .stories { min-width: 0; }
+.slider, .slider-track { max-width: 100%; min-width: 0; }
+.slide .lead .facts { min-width: 0; }
