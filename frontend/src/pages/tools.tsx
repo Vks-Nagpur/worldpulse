@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CatLabel, Chips, Empty, EventItem, Loading, PageHead, Tiles, useCountries, VerifBadge } from '../components/ui'
 import type { Article, CountrySummary, Event, MarketLatest, Signal } from '../data'
 import { API, apiQuery, load, useData } from '../data'
+import { highlight, parseQuery, prepare, score, type Prepared, type Query } from '../search'
 import { t } from '../i18n'
 import { toggleWatch, watchStore } from '../store'
 import { resetName, userName, useUser } from '../components/welcome'
@@ -103,7 +104,11 @@ export function Ask() {
 }
 
 // ---------------------------------------------------------------- Search
-type Hit = { type: string; title: string; desc?: string | null; date?: string | null; source?: string | null; countries: string[]; category?: string; url?: string | null; internal?: string; verification?: string }
+type Hit = { type: string; title: string; desc?: string | null; date?: string | null; source?: string | null; countries: string[]; category?: string; url?: string | null; internal?: string; verification?: string; prep: Prepared }
+
+function Marked({ text, q }: { text: string; q: Query }) {
+  return <>{highlight(text, q).map((p, i) => (p.hit ? <mark key={i} className="hl">{p.s}</mark> : <span key={i}>{p.s}</span>))}</>
+}
 
 export function Search({ initial }: { initial: string }) {
   const [q, setQ] = useState(initial)
@@ -113,43 +118,58 @@ export function Search({ initial }: { initial: string }) {
   useEffect(() => setQ(initial), [initial])
   useEffect(() => {
     Promise.all([load<{ events: Event[] }>('events.json'), load<{ articles: Article[] }>('news.json'), load<{ countries: CountrySummary[] }>('countries.json'),
-      load<MarketLatest[]>('dashboard/markets_latest.json'), load<{ signals: Signal[] }>('signals.json')]).then(([ev, n, c, m, s]) => setAll([
-      ...c.countries.map((x) => ({ type: 'country', title: x.name, desc: `${x.region}${x.capital ? ' · capital ' + x.capital : ''}`, countries: [x.iso2], internal: `/country/${x.iso2}` })),
-      ...ev.events.map((e) => ({ type: 'development', title: e.title, date: e.started_at || e.first_detected, source: e.refs[0]?.p, countries: e.countries, category: e.category, internal: `/event/${e.id}`, verification: e.verification })),
-      ...n.articles.map((a) => ({ type: 'headline', title: a.t, desc: a.x, date: a.d, source: a.p, countries: a.k, category: a.c, url: a.u })),
-      ...m.map((x) => ({ type: 'price', title: x.name, desc: `${x.unit} · latest ${x.as_of}`, source: x.source, countries: x.country ? [x.country] : [], internal: `/markets?s=${encodeURIComponent(x.id)}`, date: x.as_of })),
-      ...s.signals.map((x) => ({ type: 'signal', title: x.title, date: x.detected_at, source: 'OpenSignals', countries: x.country ? [x.country] : [], internal: `/signal/${x.id}` })),
-    ]), () => setAll([]))
+      load<MarketLatest[]>('dashboard/markets_latest.json'), load<{ signals: Signal[] }>('signals.json')]).then(([ev, n, c, m, s]) => {
+      const name: Record<string, string> = {}
+      c.countries.forEach((x) => { name[x.iso2] = x.name })
+      const cn = (codes: string[]) => codes.map((k) => name[k] || k).join(' ')
+      const rank: Record<string, number> = { instrument_observation: 3, official_alert: 2.5, official_statement: 2, multi_source_reporting: 1.5, single_source_report: 0.5 }
+      setAll([
+        ...c.countries.map((x) => ({ type: 'country', title: x.name, desc: `${x.region}${x.capital ? ' · capital ' + x.capital : ''}`, countries: [x.iso2], internal: `/country/${x.iso2}`,
+          prep: prepare({ fields: [[x.name, 4], [x.iso2, 4], [x.iso3, 3], [x.capital || '', 2], [x.region, 1]], boost: 6 }) })),
+        ...m.map((x) => ({ type: 'price', title: x.name, desc: `${x.unit} · latest ${x.as_of}`, source: x.source, countries: x.country ? [x.country] : [], internal: `/markets?s=${encodeURIComponent(x.id)}`, date: x.as_of,
+          prep: prepare({ fields: [[x.name, 4], [x.id.replace(/^\w+:/, ''), 3], ['price prices rate chart', 3], [x.unit, 1], [x.kind, 1]], boost: 5 }) })),
+        ...ev.events.map((e) => ({ type: 'development', title: e.title, date: e.started_at || e.first_detected, source: e.refs[0]?.p, countries: e.countries, category: e.category, internal: `/event/${e.id}`, verification: e.verification,
+          prep: prepare({ fields: [[e.title, 3], [cn(e.countries), 2], [cat(e.category).label, 1], [e.refs[0]?.p || '', 1], [(e.why || []).join(' '), 1]], date: e.started_at || e.first_detected, boost: (rank[e.verification] || 0) + Math.min(e.outlets, 6) * 0.3 }) })),
+        ...n.articles.map((a) => ({ type: 'headline', title: a.t, desc: a.x, date: a.d, source: a.p, countries: a.k, category: a.c, url: a.u,
+          prep: prepare({ fields: [[a.t, 3], [a.x || '', 1], [a.p || '', 1], [cn(a.k), 2]], date: a.d }) })),
+        ...s.signals.map((x) => ({ type: 'signal', title: x.title, date: x.detected_at, source: 'OpenSignals', countries: x.country ? [x.country] : [], internal: `/signal/${x.id}`,
+          prep: prepare({ fields: [[x.title, 3], [cn(x.country ? [x.country] : []), 2], [x.signal_type.replace('_', ' '), 1]], date: x.detected_at, boost: 1 }) })),
+      ])
+    }, () => setAll([]))
   }, [])
-  const results = useMemo(() => {
-    if (!all || q.trim().length < 2) return []
-    const terms = q.toLowerCase().split(/\s+/).filter((x) => x.length > 1)
-    const r = all.map((h) => {
-      const text = `${h.title} ${h.desc || ''} ${h.source || ''} ${h.countries.join(' ')}`.toLowerCase()
-      return { h, s: terms.reduce((acc, x) => acc + (h.title.toLowerCase().includes(x) ? 3 : text.includes(x) ? 1 : -100), 0) + (h.type === 'country' ? 5 : 0) }
-    }).filter(({ h, s }) => s > 0 && (type === 'all' || h.type === type))
-    r.sort((a, b) => (sort === 'date' ? (b.h.date || '').localeCompare(a.h.date || '') : b.s - a.s))
-    return r.slice(0, 200).map((x) => x.h)
-  }, [all, q, type, sort])
+  const query = useMemo(() => parseQuery(q), [q])
+  const { full, partial } = useMemo(() => {
+    if (!all || !query.terms.length) return { full: [] as Hit[], partial: [] as Hit[] }
+    const scored = all.filter((h) => type === 'all' || h.type === type).map((h) => ({ h, ...score(h.prep, query) })).filter((x) => x.score > 0)
+    const order = (a: typeof scored[number], b: typeof scored[number]) => (sort === 'date' ? (b.h.date || '').localeCompare(a.h.date || '') : b.score - a.score)
+    const f = scored.filter((x) => x.matched === query.terms.length).sort(order)
+    const p = query.terms.length > 1 ? scored.filter((x) => x.matched < query.terms.length && x.matched >= Math.ceil(query.terms.length / 2)).sort(order) : []
+    return { full: f.slice(0, 200).map((x) => x.h), partial: f.length < 15 ? p.slice(0, 30).map((x) => x.h) : [] }
+  }, [all, query, type, sort])
+  const row = (h: Hit, i: number, part = false) => (
+    <div key={`${part}-${i}`} className="item"><div style={{ minWidth: 0 }}>
+      <div className="t">{h.internal ? <a href={`#${h.internal}`}><Marked text={h.title} q={query} /></a> : <Ext href={h.url}><Marked text={h.title} q={query} /></Ext>}</div>
+      {h.desc && <div className="small muted"><Marked text={h.desc} q={query} /></div>}
+      <div className="m"><Badge tone="b-acc">{h.type}</Badge>{part && <Badge>partial match</Badge>}{h.verification && <VerifBadge v={h.verification} />}{h.category && <CatLabel c={h.category} />}
+        {h.countries.slice(0, 4).map((c) => <span key={c}>{flag(c)} {c}</span>)}{h.source && <span>{h.source}</span>}{h.date && <span>{fmtDate(h.date)}</span>}</div></div></div>
+  )
   return (
     <>
-      <PageHead title={`🔎 ${t('Search')}`} sub="Countries, developments, headlines, prices and signals in the published data." />
+      <PageHead title={`🔎 ${t('Search')}`} sub="Countries, developments, headlines, prices and signals in the published data. Whole words are matched; country tags count too." />
       <div className="card" style={{ marginBottom: 14 }}>
-        <input className="input" style={{ fontSize: 16, padding: '12px 14px' }} autoFocus placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <form role="search" onSubmit={(e) => { e.preventDefault(); location.hash = `/search?q=${encodeURIComponent(q.trim())}` }}>
+          <input className="input" type="search" enterKeyHint="search" style={{ fontSize: 16, padding: '12px 14px' }} autoFocus placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
+        </form>
         <div className="row" style={{ marginTop: 10 }}>
-          <Chips scroll value={type} onChange={setType} options={['all', 'country', 'development', 'headline', 'price', 'signal'].map((v) => ({ v, label: v === 'all' ? 'All' : v[0].toUpperCase() + v.slice(1) + 's' }))} />
-          <Chips value={sort} onChange={setSort} options={[{ v: 'relevance', label: 'Relevance' }, { v: 'date', label: 'Newest' }]} />
+          <Chips scroll value={type} onChange={setType} options={[['all', 'All'], ['country', 'Countries'], ['development', 'Developments'], ['headline', 'Headlines'], ['price', 'Prices'], ['signal', 'Signals']].map(([v, label]) => ({ v, label }))} />
+          <Chips value={sort} onChange={setSort} options={[{ v: 'relevance', label: 'Best match' }, { v: 'date', label: 'Newest' }]} />
         </div>
       </div>
-      {!all ? <Loading /> : q.trim().length < 2 ? <Empty>Type at least two letters.</Empty> : (
-        <div className="card"><div className="small muted">{results.length}{results.length === 200 ? '+' : ''} results</div>
-          <div className="list">{results.map((h, i) => (
-            <div key={i} className="item"><div style={{ minWidth: 0 }}>
-              <div className="t">{h.internal ? <a href={`#${h.internal}`}>{h.title}</a> : <Ext href={h.url}>{h.title}</Ext>}</div>
-              {h.desc && <div className="small muted">{h.desc}</div>}
-              <div className="m"><Badge tone="b-acc">{h.type}</Badge>{h.verification && <VerifBadge v={h.verification} />}{h.category && <CatLabel c={h.category} />}
-                {h.countries.slice(0, 4).map((c) => <span key={c}>{flag(c)} {c}</span>)}{h.source && <span>{h.source}</span>}{h.date && <span>{fmtDate(h.date)}</span>}</div></div></div>))}</div>
-          {!results.length && <Empty>No results.</Empty>}</div>
+      {!all ? <Loading /> : !query.terms.length ? <Empty>Type a word — for example a country, a commodity or a company.</Empty> : (
+        <div className="card"><div className="small muted">{full.length}{full.length === 200 ? '+' : ''} result{full.length === 1 ? '' : 's'} containing {query.terms.length > 1 ? 'all words' : `“${query.raw}”`}</div>
+          <div className="list">{full.map((h, i) => row(h, i))}</div>
+          {partial.length > 0 && <><div className="small muted" style={{ marginTop: 12 }}>Close matches (some of the words)</div><div className="list">{partial.map((h, i) => row(h, i, true))}</div></>}
+          {!full.length && !partial.length && <Empty>No results for “{query.raw}”. Try fewer or different words.</Empty>}</div>
       )}
     </>
   )

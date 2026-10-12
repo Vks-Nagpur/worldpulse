@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { Loading, ToastHost } from './components/ui'
 import { Welcome } from './components/welcome'
+import { SearchBox } from './components/searchbox'
 import type { Meta } from './data'
 import { useData } from './data'
 import { setLang, t, useLang } from './i18n'
@@ -108,7 +109,6 @@ function App() {
   const [theme, toggle] = useTheme()
   const install = useInstall()
   const [more, setMore] = useState(false)
-  const [q, setQ] = useState('')
   const meta = useData<Meta>('meta.json')
   const [path, query = ''] = route.split('?')
   useEffect(() => setMore(false), [route])
@@ -135,11 +135,7 @@ function App() {
       <main className="main">
         <div className="topbar">
           <a className="brand mobile-brand" href="#/" style={{ padding: 0 }}><div className="brand-logo" style={{ width: 32, height: 32 }}><Logo /></div></a>
-          <div className="search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-            <input placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search"
-              onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) location.hash = `/search?q=${encodeURIComponent(q.trim())}` }} />
-          </div>
+          <SearchBox />
           <button type="button" className="icon-btn" onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} aria-label={t('Language')} title={t('Language')}>{lang === 'hi' ? 'EN' : 'हि'}</button>
           <button type="button" className="icon-btn" onClick={toggle} aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}<span className="hide-sm">{theme === 'dark' ? t('Light') : t('Dark')}</span></button>
           {install && <button type="button" className="icon-btn hide-sm" onClick={install}>⬇ {t('Install app')}</button>}

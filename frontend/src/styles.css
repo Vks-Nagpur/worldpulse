@@ -305,3 +305,18 @@ pre { background: var(--panel-2); padding: 10px; border-radius: 10px; overflow-x
 .greet { font-family: "Space Grotesk", sans-serif; font-size: clamp(22px, 3vw, 30px); font-weight: 600; letter-spacing: -0.01em; animation: pageIn .5s var(--ease) both; }
 .greet .wave { display: inline-block; animation: wave 1.6s ease-in-out .3s 2; transform-origin: 70% 70%; }
 @keyframes wave { 0%, 60%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } }
+
+/* ---------- search ---------- */
+.topbar .search form { position: relative; }
+.search-go { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: var(--accent); color: #fff; width: 30px; height: 30px; border-radius: 9px; cursor: pointer; font-size: 15px; }
+.topbar .search input { padding-right: 42px; }
+.search-sugs { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px; z-index: 50; animation: cardIn .16s var(--ease) both; max-height: 70vh; overflow-y: auto; }
+.search-sugs button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border: 0; background: none; border-radius: 10px; cursor: pointer; color: var(--text); }
+.search-sugs button:hover, .search-sugs button.on { background: var(--panel-2); }
+.sug-icon { width: 22px; text-align: center; flex: none; }
+.sug-main { display: flex; flex-direction: column; min-width: 0; }
+.sug-main b { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sug-main small { color: var(--faint); font-size: 12px; }
+.sug-all { color: var(--accent) !important; font-weight: 600; font-size: 13.5px; border-top: 1px solid var(--border) !important; border-radius: 0 0 10px 10px !important; }
+mark.hl { background: color-mix(in srgb, #facc15 40%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+input[type="search"]::-webkit-search-cancel-button { cursor: pointer; }
