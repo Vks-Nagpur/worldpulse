@@ -333,7 +333,7 @@ class Collector:
         return "ok", n, n
 
 
-def collect_gdelt_timelines(conn: sqlite3.Connection, registry: dict, log=print, budget_s: float = 360, max_series: int = 10) -> dict:
+def collect_gdelt_timelines(conn: sqlite3.Connection, registry: dict, log=print, budget_s: float = 120, max_series: int = 6) -> dict:
     """News-volume baselines from GDELT: daily article counts (30 days) for
     each watch-list country name and each geopolitical topic query.
     Stops after ``budget_s`` seconds so a slow GDELT cannot stall the run;

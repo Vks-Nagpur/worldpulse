@@ -9,9 +9,6 @@ on:
   push:
     branches: [main]
 
-concurrency:
-  group: worldpulse-data
-  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -23,6 +20,9 @@ env:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    concurrency:
+      group: worldpulse-data
+      cancel-in-progress: false
     timeout-minutes: 30
     defaults:
       run:
@@ -101,6 +101,50 @@ jobs:
             gh issue close "$OPEN" --repo "$GITHUB_REPOSITORY" --comment "Checks passed on $(date -u +%Y-%m-%dT%H:%M) UTC."
           fi
 
+  site-quick:
+    # Needs Settings → Pages → Source: GitHub Actions (one-time).
+    # Code pushes: publish the new website in ~1 minute using the latest existing data.
+    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch latest data snapshot
+        run: |
+          set -o pipefail
+          git fetch --depth=1 origin "$DATA_BRANCH"
+          mkdir -p public/data
+          (cd "$GITHUB_WORKSPACE" && git archive FETCH_HEAD) | tar -x -C public/data
+          rm -f public/data/worldpulse.sqlite.gz
+          test -f public/data/meta.json || { echo "::error::data snapshot missing meta.json"; exit 1; }
+          ls public/data
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          WORLDPULSE_BASE: /${{ github.event.repository.name }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
   pages:
     # Needs Settings → Pages → Source: GitHub Actions (one-time).
     needs: collect
@@ -113,6 +157,9 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: frontend
