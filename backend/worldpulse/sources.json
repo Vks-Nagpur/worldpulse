@@ -443,7 +443,7 @@
   },
   {
    "id": "pib",
-   "name": "Press Information Bureau (Government of India)",
+   "name": "Press Information Bureau (disabled: blocks automated requests with HTTP 403)",
    "kind": "rss",
    "source_type": "government",
    "url": "https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3",
@@ -455,7 +455,8 @@
     "official",
     "government",
     "india"
-   ]
+   ],
+   "enabled": false
   },
   {
    "id": "wto-news",
@@ -472,7 +473,7 @@
   },
   {
    "id": "imf-news",
-   "name": "IMF — news",
+   "name": "IMF — news (disabled: feed address returned 404; replace with a working IMF feed)",
    "kind": "rss",
    "source_type": "institution",
    "url": "https://www.imf.org/en/News/RSS?Language=ENG",
@@ -481,7 +482,8 @@
    "interval_minutes": 180,
    "tags": [
     "official"
-   ]
+   ],
+   "enabled": false
   },
   {
    "id": "gn-q-sanctions",
