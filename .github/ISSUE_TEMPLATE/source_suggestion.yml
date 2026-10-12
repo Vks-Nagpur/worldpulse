@@ -1,0 +1,31 @@
+name: Suggest a free source
+description: Propose a public, free news feed or dataset for WorldPulse
+title: "Source suggestion: "
+labels: ["source-suggestion"]
+body:
+  - type: input
+    id: name
+    attributes: { label: Source name, placeholder: "e.g. Ministry of Commerce press releases" }
+    validations: { required: true }
+  - type: input
+    id: url
+    attributes: { label: Feed or dataset URL (RSS, JSON or CSV), placeholder: "https://…" }
+    validations: { required: true }
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Main topic
+      options: [Markets & economy, Trade & shipping, Energy, Conflict & security, Sanctions & diplomacy, Central bank / government, Other]
+    validations: { required: true }
+  - type: checkboxes
+    id: free
+    attributes:
+      label: Free & permitted
+      options:
+        - label: The source is free to access without a paid key or subscription
+          required: true
+        - label: Its terms allow automated reading of headlines and links
+          required: true
+  - type: textarea
+    id: why
+    attributes: { label: Why it is useful (optional) }

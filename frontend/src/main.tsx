@@ -1,18 +1,42 @@
-import { StrictMode, useEffect, useState } from 'react'
+import { lazy, StrictMode, Suspense, useEffect, useState, type ComponentType } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
+import { Loading, ToastHost } from './components/ui'
+import { Welcome } from './components/welcome'
 import type { Meta } from './data'
 import { useData } from './data'
-import { Countries, Country } from './pages/countries'
-import { Monitor, Overview } from './pages/overview'
-import { EventDetail, Markets, Quakes, SignalDetail, Signals } from './pages/signals'
-import { Alerts, Ask, Briefings, evaluateAlerts, Search, Sources } from './pages/tools'
+import { setLang, t, useLang } from './i18n'
 import { ago, hoursSince } from './util'
+
+// Pages load on demand so the first screen is small and fast.
+const page = <T,>(f: () => Promise<Record<string, T>>, name: string) => lazy(() => f().then((m) => ({ default: m[name] as unknown as ComponentType<Record<string, string>> })))
+const Today = page(() => import('./pages/today'), 'Today')
+const Markets = page(() => import('./pages/markets'), 'Markets')
+const Energy = page(() => import('./pages/markets'), 'Energy')
+const Trade = page(() => import('./pages/trade'), 'Trade')
+const Conflict = page(() => import('./pages/trade'), 'Conflict')
+const RiskPage = page(() => import('./pages/countries'), 'RiskPage')
+const Countries = page(() => import('./pages/countries'), 'Countries')
+const Country = page(() => import('./pages/countries'), 'Country')
+const EventDetail = page(() => import('./pages/detail'), 'EventDetail')
+const Signals = page(() => import('./pages/detail'), 'Signals')
+const SignalDetail = page(() => import('./pages/detail'), 'SignalDetail')
+const News = page(() => import('./pages/detail'), 'News')
+const Quakes = page(() => import('./pages/detail'), 'Quakes')
+const Policy = page(() => import('./pages/policy'), 'Policy')
+const Briefings = page(() => import('./pages/policy'), 'Briefings')
+const Ask = page(() => import('./pages/tools'), 'Ask')
+const Search = page(() => import('./pages/tools'), 'Search')
+const Watch = page(() => import('./pages/tools'), 'Watch')
+const About = page(() => import('./pages/about'), 'About')
+const Learn = page(() => import('./pages/about'), 'Learn')
+const EmbedInfo = page(() => import('./pages/about'), 'EmbedInfo')
+const EmbedWidget = page(() => import('./pages/about'), 'EmbedWidget')
 
 function useRoute() {
   const [h, setH] = useState(location.hash.slice(1) || '/')
   useEffect(() => {
-    const f = () => { setH(location.hash.slice(1) || '/'); window.scrollTo(0, 0) }
+    const f = () => { setH(location.hash.slice(1) || '/'); window.scrollTo({ top: 0 }) }
     addEventListener('hashchange', f)
     return () => removeEventListener('hashchange', f)
   }, [])
@@ -21,87 +45,132 @@ function useRoute() {
 
 function useTheme() {
   const pref = () => { try { return localStorage.getItem('worldpulse.theme') } catch { return null } }
-  const [t, setT] = useState<string>(pref() || 'light')
+  const [th, setTh] = useState<string>(pref() || 'light')
   useEffect(() => {
-    document.documentElement.dataset.theme = t
-    try { localStorage.setItem('worldpulse.theme', t) } catch { /* ignore */ }
-  }, [t])
-  return [t, () => setT(t === 'dark' ? 'light' : 'dark')] as const
+    document.documentElement.dataset.theme = th
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', th === 'dark' ? '#0b1120' : '#4f46e5')
+    try { localStorage.setItem('worldpulse.theme', th) } catch { /* ignore */ }
+  }, [th])
+  return [th, () => setTh(th === 'dark' ? 'light' : 'dark')] as const
 }
 
-const NAV: [string, string, string, string?][] = [
-  ['Monitor', '/', '🏠', 'Overview'], ['Monitor', '/monitor', '🗞️', 'World Monitor'], ['Monitor', '/countries', '🌐', 'Countries'],
-  ['Monitor', '/signals', '⚡', 'OpenSignals'], ['Data', '/markets', '💹', 'Markets'], ['Data', '/quakes', '🌋', 'Earthquakes'],
-  ['Intelligence', '/briefings', '📋', 'Briefings'], ['Intelligence', '/ask', '💬', 'Ask WorldPulse'], ['Intelligence', '/search', '🔎', 'Search'],
-  ['Intelligence', '/alerts', '🔔', 'Alerts'], ['About', '/sources', '🧪', 'Sources & method'],
+type BIP = Event & { prompt: () => Promise<void> }
+function useInstall() {
+  const [evt, setEvt] = useState<BIP | null>(null)
+  useEffect(() => {
+    const f = (e: Event) => { e.preventDefault(); setEvt(e as BIP) }
+    addEventListener('beforeinstallprompt', f)
+    return () => removeEventListener('beforeinstallprompt', f)
+  }, [])
+  return evt ? () => { evt.prompt(); setEvt(null) } : null
+}
+
+const NAV: [string, string, string, string][] = [
+  ['Monitor', '/', '🏠', 'Today'], ['Monitor', '/markets', '📈', 'Markets'], ['Monitor', '/energy', '🛢️', 'Energy'], ['Monitor', '/trade', '🚢', 'Trade & shipping'],
+  ['Monitor', '/conflict', '🛡️', 'Conflict & security'], ['Monitor', '/risk', '🚦', 'Country risk'], ['Monitor', '/countries', '🌐', 'Countries'], ['Monitor', '/signals', '⚡', 'Signals'],
+  ['Intelligence', '/policy', '🏛️', 'Policy & elections'], ['Intelligence', '/briefings', '📋', 'Briefings'], ['Intelligence', '/news', '📰', 'All news'], ['Intelligence', '/ask', '💬', 'Ask WorldPulse'],
+  ['Intelligence', '/search', '🔎', 'Search'], ['You', '/watch', '⭐', 'Watchlist & alerts'], ['You', '/learn', '📘', 'Learn'], ['You', '/quakes', '🌋', 'Earthquakes'], ['You', '/about', '🧪', 'About & sources'],
 ]
+const BOTTOM: [string, string, string][] = [['/', '🏠', 'Today'], ['/markets', '📈', 'Markets'], ['/trade', '🚢', 'Trade'], ['/conflict', '🛡️', 'Conflict']]
+
+function Router({ path, query }: { path: string; query: string }) {
+  const parts = path.split('/').filter(Boolean)
+  const id = decodeURIComponent(parts[1] || '')
+  switch (parts[0]) {
+    case undefined: return <Today />
+    case 'markets': return <Markets query={query} key={query} />
+    case 'energy': return <Energy />
+    case 'trade': return <Trade query={query} key={query} />
+    case 'conflict': return <Conflict />
+    case 'risk': return <RiskPage />
+    case 'countries': return <Countries />
+    case 'country': return <Country code={id} key={id} />
+    case 'event': return <EventDetail id={id} key={id} />
+    case 'signals': return <Signals />
+    case 'signal': return <SignalDetail id={id} key={id} />
+    case 'news': return <News />
+    case 'quakes': return <Quakes />
+    case 'policy': return <Policy query={query} key={query} />
+    case 'briefings': return <Briefings query={query} />
+    case 'ask': return <Ask />
+    case 'search': return <Search initial={new URLSearchParams(query).get('q') || ''} />
+    case 'watch': return <Watch />
+    case 'learn': return <Learn id={id} key={id} />
+    case 'embed': return <EmbedInfo />
+    case 'about': return <About />
+    default: return <div className="empty">Page not found. <a href="#/">Go to Today</a></div>
+  }
+}
 
 function App() {
   const route = useRoute()
+  const lang = useLang()
   const [theme, toggle] = useTheme()
-  const [open, setOpen] = useState(false)
+  const install = useInstall()
+  const [more, setMore] = useState(false)
   const [q, setQ] = useState('')
   const meta = useData<Meta>('meta.json')
-  useEffect(() => { evaluateAlerts().catch(() => undefined) }, [])
-  useEffect(() => setOpen(false), [route])
-  const [path, query] = route.split('?')
-  const parts = path.split('/').filter(Boolean)
-  let page
-  switch (parts[0]) {
-    case undefined: page = <Overview />; break
-    case 'monitor': page = <Monitor />; break
-    case 'countries': page = <Countries />; break
-    case 'country': page = <Country code={parts[1] || ''} key={parts[1]} />; break
-    case 'signals': page = <Signals />; break
-    case 'signal': page = <SignalDetail id={decodeURIComponent(parts[1] || '')} />; break
-    case 'event': page = <EventDetail id={decodeURIComponent(parts[1] || '')} />; break
-    case 'markets': page = <Markets />; break
-    case 'quakes': page = <Quakes />; break
-    case 'briefings': page = <Briefings />; break
-    case 'ask': page = <Ask />; break
-    case 'search': page = <Search initial={new URLSearchParams(query).get('q') || ''} />; break
-    case 'alerts': page = <Alerts />; break
-    case 'sources': page = <Sources />; break
-    default: page = <div className="empty">Page not found. <a href="#/">Go home</a></div>
-  }
+  const [path, query = ''] = route.split('?')
+  useEffect(() => setMore(false), [route])
+  useEffect(() => { import('./pages/tools').then((m) => m.evaluateAlerts()).catch(() => undefined) }, [])
+
+  if (path.startsWith('/embed/')) return <Suspense fallback={<Loading rows={3} />}><EmbedWidget id={path.split('/')[2] || 'prices'} /></Suspense>
+
+  const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href) || (href === '/countries' && path.startsWith('/country/')) || (href === '/signals' && path.startsWith('/signal/')))
   const stale = meta.data && hoursSince(meta.data.generated_at) > meta.data.stale_after_hours
   let group = ''
   return (
     <div className="app">
-      <aside className={`side ${open ? 'open' : ''}`}>
-        <div className="brand">
-          <div className="brand-logo"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M2 13h4l3-7 5 13 3-6h5" stroke="white" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
-          <div><h1>WorldPulse</h1><small>Open global intelligence</small></div>
-        </div>
+      <aside className="side">
+        <a className="brand" href="#/"><div className="brand-logo"><Logo /></div><div><b>WorldPulse</b><small>Markets · trade · energy · conflict</small></div></a>
         <nav className="nav">
           {NAV.map(([g, href, icon, label]) => {
             const head = g !== group ? <div className="nav-group">{(group = g)}</div> : null
-            const active = href === '/' ? path === '/' : path.startsWith(href) || (href === '/countries' && parts[0] === 'country') || (href === '/signals' && parts[0] === 'signal')
-            return <div key={href}>{head}<a href={`#${href}`} className={active ? 'active' : ''}><span>{icon}</span>{label}
+            return <div key={href}>{head}<a href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}
               {href === '/signals' && meta.data ? <span className="count">{meta.data.counts.signals_30d}</span> : null}</a></div>
           })}
         </nav>
-        <div className="small faint" style={{ padding: '18px 10px 0' }}>
-          {meta.data ? <>Data updated {ago(meta.data.generated_at)}<br />v{meta.data.app_version} · processing {meta.data.processing_version}</> : 'Loading data…'}
-          <br />Free &amp; open source · public data only
-        </div>
+        <div className="side-foot">{meta.data ? <>{t('Updated')} {ago(meta.data.generated_at)}<br />v{meta.data.app_version}</> : t('Loading…')}<br />Free &amp; open source · public data only</div>
       </aside>
       <main className="main">
         <div className="topbar">
-          <button className="icon-btn menu-btn" onClick={() => setOpen(!open)} aria-label="Menu">☰</button>
+          <a className="brand mobile-brand" href="#/" style={{ padding: 0 }}><div className="brand-logo" style={{ width: 32, height: 32 }}><Logo /></div></a>
           <div className="search">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-            <input placeholder="Search countries, events, headlines…  (press Enter)" value={q} onChange={(e) => setQ(e.target.value)}
+            <input placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search"
               onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) location.hash = `/search?q=${encodeURIComponent(q.trim())}` }} />
           </div>
-          <a className="icon-btn" href="#/ask" style={{ textDecoration: 'none', color: 'inherit' }}>💬 Ask</a>
-          <button className="icon-btn" onClick={toggle} aria-label="Toggle theme">{theme === 'dark' ? '☀️ Light' : '🌙 Dark'}</button>
+          <button type="button" className="icon-btn" onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} aria-label={t('Language')} title={t('Language')}>{lang === 'hi' ? 'EN' : 'हि'}</button>
+          <button type="button" className="icon-btn" onClick={toggle} aria-label="Toggle theme">{theme === 'dark' ? '☀️' : '🌙'}<span className="hide-sm">{theme === 'dark' ? t('Light') : t('Dark')}</span></button>
+          {install && <button type="button" className="icon-btn hide-sm" onClick={install}>⬇ {t('Install app')}</button>}
         </div>
-        {stale && <div className="banner warn"><span>⏳</span><div><b>This data is {ago(meta.data!.generated_at)} old.</b> <span className="small">The scheduled update may be delayed (GitHub runs schedules on a best-effort basis) or failing. Check Sources &amp; method.</span></div></div>}
-        {page}
+        {stale && <div className="banner warn"><span>⏳</span><div><b>This data is {ago(meta.data!.generated_at)} old.</b> <span className="small">The scheduled update may be delayed or failing — see About &amp; sources.</span></div></div>}
+        <Suspense fallback={<Loading rows={6} />}><div className="page" key={path}><Router path={path} query={query} /></div></Suspense>
       </main>
+      <nav className="bottom-nav" aria-label="Main">
+        {BOTTOM.map(([href, icon, label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}</a>)}
+        <button type="button" className={more ? 'active' : ''} onClick={() => setMore(true)}><span>☰</span>{t('More')}</button>
+      </nav>
+      {more && (
+        <>
+          <div className="sheet-bg" onClick={() => setMore(false)} />
+          <div className="sheet" role="dialog" aria-label="More pages">
+            <div className="sheet-grip" />
+            <div className="sheet-grid">{NAV.filter(([, href]) => !BOTTOM.some((b) => b[0] === href)).map(([, href, icon, label]) => <a key={href} href={`#${href}`}><span>{icon}</span>{t(label)}</a>)}</div>
+            {install && <button type="button" className="btn" style={{ width: '100%', marginTop: 12 }} onClick={install}>⬇ {t('Install app')}</button>}
+          </div>
+        </>
+      )}
+      <ToastHost />
+      <Welcome />
     </div>
   )
 }
+const Logo = () => <svg width="20" height="20" viewBox="0 0 24 24"><path d="M2 13h4l3-7 5 13 3-6h5" stroke="white" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+
+// Offline support + installable app (production only).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  addEventListener('load', () => navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => undefined))
+}

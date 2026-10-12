@@ -1,0 +1,19 @@
+name: Report a wrong item
+description: A headline, country, topic, price or signal shown incorrectly
+title: "Wrong item: "
+labels: ["data-correction"]
+body:
+  - type: input
+    id: link
+    attributes: { label: Link to the page on WorldPulse, placeholder: "https://vks-nagpur.github.io/worldpulse/#/event/…" }
+    validations: { required: true }
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is wrong?
+      options: [Wrong country, Wrong topic, Duplicate story, Wrong price or date, Misleading signal, Broken link, Other]
+    validations: { required: true }
+  - type: textarea
+    id: details
+    attributes: { label: Details, description: "What should it be? Please include an official or original source if you can." }
+    validations: { required: true }

@@ -44,13 +44,16 @@ export function LineChart({ series, height = 240, fmt = (v: number) => v.toLocal
   const ticks = [min, (min + max) / 2, max]
   const xt = days.filter((_, i) => i % Math.ceil(days.length / Math.max(2, Math.floor(iw / 90))) === 0)
   const hd = hover != null ? days[hover] : null
+  const pick = (el: HTMLDivElement, clientX: number) => {
+    const r = el.getBoundingClientRect()
+    const i = Math.round((((clientX - r.left) * (w / r.width) - pad.l) / iw) * (days.length - 1))
+    setHover(Math.max(0, Math.min(days.length - 1, i)))
+  }
   return (
     <div className="chart" ref={ref} onMouseLeave={() => setHover(null)}
-      onMouseMove={(e) => {
-        const r = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
-        const i = Math.round(((e.clientX - r.left - pad.l) / iw) * (days.length - 1))
-        setHover(Math.max(0, Math.min(days.length - 1, i)))
-      }}>
+      onMouseMove={(e) => pick(e.currentTarget, e.clientX)}
+      onTouchStart={(e) => pick(e.currentTarget, e.touches[0].clientX)}
+      onTouchMove={(e) => pick(e.currentTarget, e.touches[0].clientX)}>
       <svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`}>
         {ticks.map((t, i) => (
           <g key={i}>

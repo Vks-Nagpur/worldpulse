@@ -10,6 +10,15 @@ Free, open-source global intelligence built from public data. It answers three q
 
 Nothing is simulated. If a source fails or data is missing, the site says so.
 
+**Live site:** https://vks-nagpur.github.io/worldpulse/ — free, no sign-in, no ads. Installable as a phone app, English/हिन्दी, light/dark.
+
+### What's on the site
+Today (what changed since yesterday, key prices, watchlist, key developments, risk signals) · Markets (1-year charts, compare tool, currency watch) · Energy ·
+Trade & shipping (sanctions tracker, chokepoint watch, supply chains) · Conflict & security · Country risk scorecard · Country pages with sourced briefings ·
+Signals · Policy & elections (official and central-bank announcements, elections in the news, corrections log) · Briefings and weekly reviews ·
+All news · Ask WorldPulse · Search · Watchlist & alerts (saved in the browser) · Learn (explainers) · Embeddable widgets · RSS feed (`data/feed.xml`) ·
+CSV downloads · print/PDF · share links. Automatic quality checks open a GitHub issue when a data run has problems. See CONTRIBUTING.md to help.
+
 ## Two ways to run it
 
 ### 1. Public dashboard (no server)

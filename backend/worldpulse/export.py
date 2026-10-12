@@ -289,7 +289,8 @@ def export_dashboard(out: Path, news, events, sigs, qs, markets, clist, srcs, hi
         def chg(k):
             return round((p[-1][1] / p[-1 - k][1] - 1) * 100, 2) if len(p) > k and p[-1 - k][1] else None
         latest.append({"id": m["id"], "name": m["name"], "kind": m["kind"], "unit": m["unit"], "last": p[-1][1], "as_of": p[-1][0],
-                       "chg_1d": chg(1), "chg_5d": chg(5), "chg_21d": chg(21), "source": m["source"]})
+                       "chg_1d": chg(1), "chg_5d": chg(5), "chg_21d": chg(21), "chg_63d": chg(63), "chg_252d": chg(min(252, len(p) - 1)),
+                       "source": m["source"], "spark": [round(v, 6) for _, v in p[-30:]], "country": m.get("country")})
         series_rows += [{"id": m["id"], "name": m["name"], "kind": m["kind"], "day": day, "value": v} for day, v in p[-130:]]
     rows("markets_latest", latest)
     rows("markets_series", series_rows)
