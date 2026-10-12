@@ -14,7 +14,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import PROCESSING_VERSION, __version__
-from . import context, insights
+from . import ai, context, insights
 from .briefings import country_briefing
 import os
 from xml.sax.saxutils import escape
@@ -131,6 +131,12 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                  "revision": e["revision"], "outlets": len({r.get("publisher") for r in refs}), "why": why,
                  "refs": [{"t": r["title"], "u": r.get("url"), "p": r.get("publisher"), "d": r.get("published_at")} for r in refs[:1]],
                  "n_related": len(related)}
+        ents = ai.entities_for(conn, e["id"])
+        disputes = ai.disagreements(conn, e["cluster_id"])
+        summ = ai.summary_for(conn, e["id"])
+        light["who"] = [x["name"] for x in ents if x["kind"] in ("person", "organisation", "group")][:3]
+        light["disputed"] = bool(disputes)
+        light["ai"] = bool(summ)
         events.append(light)
         timeline = []
         if e["cluster_id"]:
@@ -143,6 +149,7 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                   "related": [{**r, "title": titles.get(r["to"])} for r in related if r["to"] in titles],
                   "revisions": [{"revision": r["revision"], "changed_at": r["changed_at"]} for r in
                                 conn.execute("SELECT revision, changed_at FROM event_revisions WHERE event_id=? ORDER BY revision", (e["id"],))],
+                  "entities": ents, "disputes": disputes, "summary": summ,
                   "context": {
                       "background": [b for b in (context.cached(conn, f"topic:{q}") for q in context.topics_for(e["title"])) if b],
                       "places": [dict(b, iso2=c) for c in [x for x in dict.fromkeys([e["country"], *uj(e["related_countries"], [])]) if x][:2]

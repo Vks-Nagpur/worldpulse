@@ -7,7 +7,7 @@ import time
 import traceback
 from pathlib import Path
 
-from . import alerts, analyze, briefings, collect, context, export, insights
+from . import ai, alerts, analyze, briefings, collect, context, export, insights
 from .db import connect, log_error
 from .processing.normalize import now_iso
 
@@ -38,12 +38,16 @@ def run(db_path: Path = DEFAULT_DB, out: Path | None = DEFAULT_OUT, force: bool 
     _stage(conn, "collect", lambda: collect.Collector(conn, registry, log).run(force=force, only=only), log)
     if timelines:
         _stage(conn, "gdelt-timelines", lambda: collect.collect_gdelt_timelines(conn, registry, log), log)
+    if ai.enabled():
+        _stage(conn, "ai-matching", lambda: ai.embed_and_merge(conn, log), log)
     _stage(conn, "events", lambda: analyze.build_events(conn), log)
     _stage(conn, "relationships", lambda: analyze.build_relationships(conn), log)
     _stage(conn, "signals", lambda: analyze.detect_signals(conn, registry), log)
     _stage(conn, "alerts", lambda: alerts.evaluate(conn), log)
     bs = _stage(conn, "briefings", lambda: briefings.generate_all(conn, registry, use_ai=use_ai), log) or []
     _stage(conn, "context", lambda: context.refresh(conn, log), log)
+    if ai.enabled():
+        _stage(conn, "ai-understanding", lambda: ai.run_all(conn, log), log)
     _stage(conn, "prune", lambda: analyze.prune(conn), log)
     q = _stage(conn, "quality", lambda: insights.quality(conn, registry), log)
     if q and q.get("problems"):
