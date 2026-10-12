@@ -133,16 +133,17 @@ export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, 
 }
 
 /** Swipeable slider of the biggest stories. Native scroll-snap so swiping feels natural on phones;
- *  arrows and dots on laptops; moves on by itself every 8 s until the reader touches it. */
+ *  arrows and dots on laptops; moves on by itself every 5 s (pausing 5 s after a touch). */
 export function TopSlider({ items, names }: { items: Event[]; names: Record<string, CountrySummary> }) {
   const track = useRef<HTMLDivElement>(null)
   const [i, setI] = useState(0)
-  const [auto, setAuto] = useState(true)
+  const last = useRef(0) // time of the reader's last touch; auto-advance waits 5 s after it
   const go = (k: number) => {
     const el = track.current
     if (!el) return
     const n = (k + items.length) % items.length
-    el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' })
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollTo({ left: n * el.clientWidth, behavior: reduce ? 'auto' : 'smooth' })
   }
   useEffect(() => {
     const el = track.current
@@ -152,12 +153,15 @@ export function TopSlider({ items, names }: { items: Event[]; names: Record<stri
     return () => el.removeEventListener('scroll', on)
   }, [])
   useEffect(() => {
-    if (!auto || items.length < 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const id = setInterval(() => !document.hidden && go(i + 1), 8000)
+    if (items.length < 2) return
+    const id = setInterval(() => {
+      if (document.hidden || Date.now() - last.current < 5000) return
+      go(i + 1)
+    }, 5000)
     return () => clearInterval(id)
-  }, [auto, i, items.length])
+  }, [i, items.length])
   useEffect(() => { track.current?.scrollTo({ left: 0 }); setI(0) }, [items])
-  const stop = () => setAuto(false)
+  const stop = () => { last.current = Date.now() }
   return (
     <section className="slider" aria-roledescription="carousel" aria-label="Top stories">
       <div className="slider-track" ref={track} onPointerDown={stop} onTouchStart={stop} onWheel={stop}>
