@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StoryCard, topPicks, TopSlider } from '../components/story'
 import { CountryBars, Empty, ErrorBox, FilterBar, Loading, PageHead, ShareButton, SignalItem, Tiles, useCountries, VerifBadge } from '../components/ui'
 import { greeting, userName, useUser } from '../components/welcome'
-import type { Changes, Event, MarketLatest, Meta, Signal } from '../data'
+import type { Changes, CountrySummary, Event, MarketLatest, Meta, Signal } from '../data'
 import { useData } from '../data'
 import { t } from '../i18n'
-import { useFilters, watchStore } from '../store'
-import { ago, Badge, cat, filterEvents, flag, FOCUS, RISK, sortEvents } from '../util'
+import { setFilters, useFilters, watchStore } from '../store'
+import { ago, Badge, byImportance, cat, filterEvents, flag, FOCUS, frontWorthy, RISK } from '../util'
 
 export const PULSE: [string, string][] = [['mkt:BZ=F', 'Brent crude'], ['mkt:CL=F', 'WTI crude'], ['mkt:NG=F', 'Natural gas'], ['mkt:GC=F', 'Gold'],
   ['mkt:^GSPC', 'S&P 500'], ['mkt:^NSEI', 'Nifty 50'], ['fx:USDINR', 'USD / INR'], ['crypto:bitcoin', 'Bitcoin']]
@@ -15,59 +15,115 @@ export function useLatest() {
   return useData<MarketLatest[]>('dashboard/markets_latest.json')
 }
 
+// When the reader last opened the site (read once per page load), to mark what is new for them.
+const LAST = 'worldpulse.lastvisit.v1'
+const prevVisit = (() => { try { return Number(localStorage.getItem(LAST) || 0) } catch { return 0 } })()
+setTimeout(() => { try { localStorage.setItem(LAST, String(Date.now())) } catch { /* private mode */ } }, 4000)
+export const isNew = (e: Event) => prevVisit > 0 && new Date(e.first_detected).getTime() > prevVisit
+
+const SECTIONS: { key: string; title: string; cats: string[]; focus: string }[] = [
+  { key: 'war', title: '⚔️ Wars & security', cats: ['military_security'], focus: 'conflict' },
+  { key: 'money', title: '💰 Money, trade & energy', cats: ['economics', 'financial_markets', 'trade', 'energy'], focus: 'business' },
+  { key: 'pol', title: '🏛️ Politics, sanctions & diplomacy', cats: ['geopolitics', 'diplomacy', 'elections'], focus: 'geo' },
+  { key: 'dis', title: '🌋 Disasters & health', cats: ['natural_disasters', 'public_health', 'environment'], focus: 'disasters' },
+  { key: 'tech', title: '💻 Tech & cyber', cats: ['technology', 'cybersecurity'], focus: 'cyber' },
+]
+
 export function Today() {
   const meta = useData<Meta>('meta.json')
   const ch = useData<Changes>('changes.json')
-  const ev = useData<{ events: Event[] }>('events.json')
-  const sg = useData<{ signals: Signal[] }>('signals.json')
+  const fr = useData<{ events: Event[] }>('front.json')
   const f = useFilters()
+  const isDefault = f.focus === 'all' && !f.country && !f.region && !f.q && f.support === 'all' && f.hours === 168
+  // the small front-page file shows at once; the full list loads right after (or at once when filtering)
+  const [wantFull, setWantFull] = useState(!isDefault)
+  useEffect(() => { if (!isDefault) setWantFull(true); else { const id = setTimeout(() => setWantFull(true), 1200); return () => clearTimeout(id) } }, [isDefault])
+  const ev = useData<{ events: Event[] }>(wantFull || fr.error ? 'events.json' : null)
+  const sg = useData<{ signals: Signal[] }>('signals.json')
   const user = useUser()
   const { by, regionOf } = useCountries()
-  const [n, setN] = useState(10)
-  useEffect(() => setN(10), [f])
-  const rows = useMemo(() => (ev.data ? sortEvents(filterEvents(ev.data.events, f, regionOf)) : null), [ev.data, f, regionOf])
+  const [n, setN] = useState(12)
+  useEffect(() => setN(12), [f])
+  const all = ev.data?.events || fr.data?.events
+  const rows = useMemo(() => {
+    if (!all) return null
+    const r = filterEvents(all, f, regionOf)
+    // whole-world view: only world-relevant, confirmed stories; a country/topic view shows everything, best first
+    return byImportance(isDefault || f.support === 'all' && !f.country && !f.q ? r.filter(frontWorthy) : r)
+  }, [all, f, regionOf, isDefault])
   const top = useMemo(() => (rows ? topPicks(rows) : []), [rows])
   const rest = useMemo(() => (rows ? rows.filter((e) => !top.includes(e)) : []), [rows, top])
-  const sigs = useMemo(() => sg.data?.signals.filter((s) => !['market', 'fx'].includes(s.signal_type) && (!f.country || s.country === f.country) && (!f.region || regionOf(s.country) === f.region))
+  const sigs = useMemo(() => sg.data?.signals.filter((s) => s.confidence === 'high' && !['market', 'fx'].includes(s.signal_type) && (!f.country || s.country === f.country) && (!f.region || regionOf(s.country) === f.region))
     .sort((a, b) => b.detected_at.localeCompare(a.detected_at)).slice(0, 4), [sg.data, f, regionOf])
+  // when the reader changes a filter, bring the stories into view
+  const listRef = useRef<HTMLDivElement>(null)
+  const firstRun = useRef(true)
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return }
+    const el = listRef.current
+    if (el && el.getBoundingClientRect().top < 0 || (el && el.getBoundingClientRect().top > innerHeight * 0.6)) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [f.focus, f.country, f.region, f.q, f.hours, f.support])
   if (meta.error) return <ErrorBox error={meta.error} />
   const fx = FOCUS.find((x) => x.key === f.focus) || FOCUS[0]
   const where = f.country ? by[f.country]?.name || f.country : f.region || ''
+  const newCount = rows ? rows.filter(isNew).length : 0
   return (
     <>
       <PageHead
         title={userName(user) ? <span className="greet">{greeting(userName(user))} <span className="wave">👋</span></span> : t('Today')}
-        sub={<>Here is what’s going on in the world{meta.data ? <> · {t('Updated')} {ago(meta.data.generated_at)}</> : ''}</>}
+        sub={<>Here is what’s going on in the world{meta.data ? <> · {t('Updated')} {ago(meta.data.generated_at)}</> : ''}{newCount > 0 && <> · <b className="new-count">{newCount} new since your last visit</b></>}</>}
         actions={<ShareButton title="WorldPulse — what's going on in the world" path="/" />} />
 
-      <FilterBar events={ev.data?.events} />
+      <FilterBar events={ev.data?.events || fr.data?.events} />
 
       <div className="today-grid">
         <section>
-          <div className="section-head">
+          <div className="section-head scroll-anchor" ref={listRef}>
             <h2 className="section-title">{fx.icon} {f.focus === 'all' ? 'What’s going on in the world' : t(fx.label)}{where ? ` — ${where}` : ''}</h2>
-            <span className="small muted">Best-supported first · tap 🧠 for a simple explanation</span>
+            <span className="small muted">Most important first · tap 🧠 for a simple explanation</span>
           </div>
-          {ev.error ? <ErrorBox error={ev.error} /> : !rows ? <Loading rows={6} /> : !rows.length ? <Empty>{t('Nothing matches these filters.')} Try a longer time window or another topic.</Empty> : (
+          {(ev.error && fr.error) ? <ErrorBox error={ev.error} /> : !rows ? <Loading rows={6} /> : !rows.length ? <Empty>{t('Nothing matches these filters.')} Try a longer time window or another topic.</Empty> : (
             <div className="stories">
               <TopSlider items={top} names={by} />
-              {rest.slice(0, n).map((e) => <StoryCard key={e.id} e={e} names={by} />)}
-              {rest.length > n && <button type="button" className="icon-btn more-btn" onClick={() => setN(n + 15)}>{t('Show more')} ({rest.length - n})</button>}
+              {isDefault ? <Sections rows={rest} names={by} /> : <>
+                {rest.slice(0, n).map((e) => <StoryCard key={e.id} e={e} names={by} fresh={isNew(e)} />)}
+                {rest.length > n && <button type="button" className="icon-btn more-btn" onClick={() => setN(n + 15)}>{t('Show more')} ({rest.length - n})</button>}
+              </>}
             </div>
           )}
         </section>
         <aside className="stack">
           {rows && rows.length > 0 && <Glance rows={rows} />}
-          <WatchPanel events={ev.data?.events} />
+          <WatchPanel events={all} />
           <ChangesCard ch={ch.data} />
-          <div className="card"><h3>{t('Where it is happening')}</h3><p className="sub">Stories per country for these filters. Tap a country to see only its news.</p><CountryBars rows={rows} /></div>
+          <div className="card"><h3>{t('Where it is happening')}</h3><p className="sub">Stories per country. Tap a country to see only its news.</p><CountryBars rows={rows} /></div>
           <div className="card">
             <div className="card-head"><h3>⚡ Unusual activity</h3><a href="#/signals" className="small">{t('See all')} →</a></div>
-            <p className="sub">Things that changed unusually fast — for example a sudden jump in news about a country. Not predictions.</p>
-            {sigs ? (sigs.length ? <div className="list">{sigs.map((s) => <SignalItem key={s.id} s={s} />)}</div> : <Empty>Nothing unusual for these filters.</Empty>) : <Loading rows={2} />}
+            <p className="sub">Numbers that changed much faster than normal — for example a sudden jump in news about a country. Not predictions.</p>
+            {sigs ? (sigs.length ? <div className="list">{sigs.map((s) => <SignalItem key={s.id} s={s} />)}</div> : <Empty>Nothing unusual right now.</Empty>) : <Loading rows={2} />}
           </div>
         </aside>
       </div>
+    </>
+  )
+}
+
+function Sections({ rows, names }: { rows: Event[]; names: Record<string, CountrySummary> }) {
+  const used = new Set<string>()
+  return (
+    <>
+      {SECTIONS.map((sec) => {
+        const items = rows.filter((e) => sec.cats.includes(e.category) && !used.has(e.id))
+        if (!items.length) return null
+        items.slice(0, 3).forEach((e) => used.add(e.id))
+        return (
+          <div key={sec.key} className="sec">
+            <div className="sec-head"><h3>{sec.title}</h3>
+              {items.length > 3 && <button type="button" className="sec-all" onClick={() => setFilters({ focus: sec.focus })}>{t('See all')} {items.length} →</button>}</div>
+            {items.slice(0, 3).map((e) => <StoryCard key={e.id} e={e} names={names} fresh={isNew(e)} />)}
+          </div>
+        )
+      })}
     </>
   )
 }

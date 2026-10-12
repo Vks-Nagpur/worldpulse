@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CatLabel, Chips, Empty, EventItem, Loading, PageHead, Tiles, useCountries, VerifBadge } from '../components/ui'
 import type { Article, CountrySummary, Event, MarketLatest, Signal } from '../data'
 import { API, apiQuery, load, useData } from '../data'
@@ -77,11 +77,14 @@ export function Ask() {
   const [a, setA] = useState<Answer | null>(null)
   const [apiAns, setApiAns] = useState<{ summary: string } | null>(null)
   const [heads, setHeads] = useState<Article[] | null>(null)
+  const ansRef = useRef<HTMLDivElement>(null)
   const run = async (text: string) => {
     setQ(text)
     if (!ev.data || !list.length) return
     const ans = answerStatic(text, ev.data.events, list)
     setA(ans)
+    ;(document.activeElement as HTMLElement)?.blur()
+    setTimeout(() => ansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
     setHeads(null)
     // Also look through all recent headlines for the words asked about (names of people, companies…)
     if (ans.interp.keywords.length) {
@@ -97,14 +100,14 @@ export function Ask() {
   }
   return (
     <>
-      <PageHead title={`💬 ${t('Ask WorldPulse')}`} sub="Ask in plain English. Answers are built only from stored records and always show their sources. No AI is needed and nothing is made up." />
+      <PageHead title={`💬 ${t('Ask WorldPulse')}`} sub="Ask a question in plain words. The answer lists real stories with their sources — nothing is made up." />
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row" style={{ flexWrap: 'nowrap' }}><input className="input" style={{ fontSize: 16, padding: '12px 14px' }} placeholder="e.g. What happened in Ukraine this week?" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && q.trim().length > 2 && run(q)} />
           <button type="button" className="btn" disabled={!ev.data} onClick={() => q.trim().length > 2 && run(q)}>{t('Ask')}</button></div>
         <div className="chips wrap" style={{ marginTop: 10 }}>{EXAMPLES.map((x) => <button type="button" key={x} className="chip" onClick={() => run(x)}>{x}</button>)}</div>
       </div>
       {a && (
-        <div className="card">
+        <div className="card scroll-anchor" ref={ansRef}>
           <h3>Answer</h3><p>{a.summary}</p>
           <div className="row small muted" style={{ marginBottom: 8 }}><span>Understood as →</span><Badge tone="b-acc">⏱ last {a.interp.hours >= 48 ? `${Math.round(a.interp.hours / 24)} days` : `${a.interp.hours} h`}</Badge>
             {a.interp.countries.slice(0, 8).map((c) => <Badge key={c}>{flag(c)} {c}</Badge>)}{a.interp.categories.map((c) => <Badge key={c}>{cat(c).icon} {cat(c).label}</Badge>)}{a.interp.keywords.map((k) => <Badge key={k}>“{k}”</Badge>)}</div>
@@ -161,42 +164,104 @@ export function Search({ initial }: { initial: string }) {
     }, () => setAll([]))
   }, [])
   const query = useMemo(() => parseQuery(q), [q])
-  const { full, partial } = useMemo(() => {
-    if (!all || !query.terms.length) return { full: [] as Hit[], partial: [] as Hit[] }
-    const scored = all.filter((h) => type === 'all' || h.type === type).map((h) => ({ h, ...score(h.prep, query) })).filter((x) => x.score > 0)
+  const [shown, setShown] = useState(25)
+  useEffect(() => setShown(25), [q, type, sort])
+  const { full, partial, counts } = useMemo(() => {
+    const counts: Record<string, number> = {}
+    if (!all || !query.terms.length) return { full: [] as Hit[], partial: [] as Hit[], counts }
+    const scoredAll = all.map((h) => ({ h, ...score(h.prep, query) })).filter((x) => x.score > 0)
+    scoredAll.forEach((x) => { if (x.matched === query.terms.length) counts[x.h.type] = (counts[x.h.type] || 0) + 1 })
+    const scored = scoredAll.filter((x) => type === 'all' || x.h.type === type)
     const order = (a: typeof scored[number], b: typeof scored[number]) => (sort === 'date' ? (b.h.date || '').localeCompare(a.h.date || '') : b.score - a.score)
     const f = scored.filter((x) => x.matched === query.terms.length).sort(order)
     const p = query.terms.length > 1 ? scored.filter((x) => x.matched < query.terms.length && x.matched >= Math.ceil(query.terms.length / 2)).sort(order) : []
-    return { full: f.slice(0, 200).map((x) => x.h), partial: f.length < 15 ? p.slice(0, 30).map((x) => x.h) : [] }
+    return { full: f.slice(0, 300).map((x) => x.h), partial: f.length < 15 ? p.slice(0, 30).map((x) => x.h) : [], counts }
   }, [all, query, type, sort])
+  // after a search is submitted (here or from the top bar): close the keyboard and bring results into view
+  const resultsRef = useRef<HTMLDivElement>(null)
+  const webRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!initial || !all) return
+    saveRecent(initial)
+    inputRef.current?.blur()
+    const id = setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+    return () => clearTimeout(id)
+  }, [initial, !!all])
+  const submit = (text: string) => {
+    const v = text.trim()
+    if (!v) return
+    inputRef.current?.blur()
+    if (v === initial) resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    location.hash = `/search?q=${encodeURIComponent(v)}`
+  }
   const row = (h: Hit, i: number, part = false) => (
     <div key={`${part}-${i}`} className="item"><div style={{ minWidth: 0 }}>
       <div className="t">{h.internal ? <a href={`#${h.internal}`}><Marked text={h.title} q={query} /></a> : <Ext href={h.url}><Marked text={h.title} q={query} /></Ext>}</div>
       {h.desc && <div className="small muted"><Marked text={h.desc} q={query} /></div>}
-      <div className="m"><Badge tone="b-acc">{h.type}</Badge>{part && <Badge>partial match</Badge>}{h.verification && <VerifBadge v={h.verification} />}{h.category && <CatLabel c={h.category} />}
+      <div className="m"><Badge tone="b-acc">{TYPE_LABEL[h.type] || h.type}</Badge>{part && <Badge>partial match</Badge>}{h.verification && <VerifBadge v={h.verification} />}{h.category && <CatLabel c={h.category} />}
         {h.countries.slice(0, 4).map((c) => <span key={c}>{flag(c)} {c}</span>)}{h.source && <span>{h.source}</span>}{h.date && <span>{fmtDate(h.date)}</span>}</div></div></div>
   )
+  const best = sort === 'relevance' && full[0] && ['country', 'price'].includes(full[0].type) ? full[0] : null
+  const list = best ? full.slice(1) : full
+  const recent = readRecent()
   return (
     <>
-      <PageHead title={`🔎 ${t('Search')}`} sub="Search WorldPulse and the web in one place — countries, stories, prices, signals, plus live news and background from across the web." />
-      <div className="card" style={{ marginBottom: 14 }}>
-        <form role="search" onSubmit={(e) => { e.preventDefault(); location.hash = `/search?q=${encodeURIComponent(q.trim())}` }}>
-          <input className="input" type="search" enterKeyHint="search" style={{ fontSize: 16, padding: '12px 14px' }} autoFocus placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
+      <PageHead title={`🔎 ${t('Search')}`} sub="Search stories, countries and prices — plus background and live news from across the web." />
+      <div className="card search-card" style={{ marginBottom: 14 }}>
+        <form role="search" onSubmit={(e) => { e.preventDefault(); submit(q) }}>
+          <div className="search-row">
+            <input ref={inputRef} className="input" type="search" enterKeyHint="search" style={{ fontSize: 16, padding: '12px 14px' }} autoFocus={!initial}
+              placeholder={t('Search countries, events, headlines…')} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && setQ('')} aria-label="Search" />
+            <button type="submit" className="btn">{t('Search')}</button>
+          </div>
         </form>
-        <div className="row" style={{ marginTop: 10 }}>
-          <Chips scroll value={type} onChange={setType} options={[['all', 'All'], ['country', 'Countries'], ['development', 'Developments'], ['headline', 'Headlines'], ['price', 'Prices'], ['signal', 'Signals']].map(([v, label]) => ({ v, label }))} />
-          <Chips value={sort} onChange={setSort} options={[{ v: 'relevance', label: 'Best match' }, { v: 'date', label: 'Newest' }]} />
-        </div>
+        {query.terms.length > 0 && (
+          <div className="row" style={{ marginTop: 10 }}>
+            <Chips scroll value={type} onChange={setType} options={[['all', 'All'], ['country', 'Countries'], ['development', 'Stories'], ['headline', 'Headlines'], ['price', 'Prices'], ['signal', 'Signals']]
+              .filter(([v]) => v === 'all' || counts[v]).map(([v, label]) => ({ v, label: v === 'all' ? label : `${label} ${counts[v]}` }))} />
+            <Chips value={sort} onChange={setSort} options={[{ v: 'relevance', label: 'Best match' }, { v: 'date', label: 'Newest' }]} />
+          </div>
+        )}
       </div>
-      {!all ? <Loading /> : !query.terms.length ? <Empty>Type a word — for example a country, a commodity or a company.</Empty> : (
-        <div className="card"><div className="small muted">{full.length}{full.length === 200 ? '+' : ''} result{full.length === 1 ? '' : 's'} containing {query.terms.length > 1 ? 'all words' : `“${query.raw}”`}</div>
-          <div className="list">{full.map((h, i) => row(h, i))}</div>
-          {partial.length > 0 && <><div className="small muted" style={{ marginTop: 12 }}>Close matches (some of the words)</div><div className="list">{partial.map((h, i) => row(h, i, true))}</div></>}
-          {!full.length && !partial.length && <Empty>Nothing in WorldPulse’s own records for “{query.raw}” — see the web results below.</Empty>}</div>
+      {!all ? <Loading /> : !query.terms.length ? (
+        <div className="card">
+          {recent.length > 0 && <><h3>🕘 Recent searches</h3><div className="chips wrap" style={{ margin: '8px 0 14px' }}>{recent.map((r) => <button key={r} type="button" className="chip" onClick={() => { setQ(r); submit(r) }}>{r}</button>)}</div></>}
+          <h3>💡 Try</h3>
+          <div className="chips wrap" style={{ marginTop: 8 }}>{['oil price', 'India', 'sanctions', 'Ukraine', 'gold', 'Strait of Hormuz', 'interest rates', 'earthquake'].map((r) => <button key={r} type="button" className="chip" onClick={() => { setQ(r); submit(r) }}>{r}</button>)}</div>
+        </div>
+      ) : (
+        <div ref={resultsRef} className="scroll-anchor">
+          <div className="results-bar">
+            <span className="small muted"><b>{full.length}{full.length === 300 ? '+' : ''}</b> result{full.length === 1 ? '' : 's'} for “{query.raw}”</span>
+            <button type="button" className="sec-all" onClick={() => webRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>🌐 Web results ↓</button>
+          </div>
+          {best && (
+            <a className="best-hit" href={`#${best.internal}`}>
+              <span className="best-k">Best match · {TYPE_LABEL[best.type]}</span>
+              <b>{best.type === 'country' && best.countries[0] ? flag(best.countries[0]) + ' ' : '📈 '}<Marked text={best.title} q={query} /></b>
+              {best.desc && <span className="small">{best.desc}</span>}
+              <span className="best-go">Open →</span>
+            </a>
+          )}
+          <div className="card">
+            <div className="list">{list.slice(0, shown).map((h, i) => row(h, i))}</div>
+            {list.length > shown && <button type="button" className="icon-btn more-btn" onClick={() => setShown(shown + 25)}>{t('Show more')} ({list.length - shown})</button>}
+            {partial.length > 0 && <><div className="small muted" style={{ marginTop: 12 }}>Close matches (some of the words)</div><div className="list">{partial.map((h, i) => row(h, i, true))}</div></>}
+            {!full.length && !partial.length && <Empty>Nothing in WorldPulse’s own records for “{query.raw}” — see the web results below.</Empty>}
+          </div>
+        </div>
       )}
-      {query.terms.length > 0 && <WebResults q={initial} />}
+      <div ref={webRef} className="scroll-anchor">{query.terms.length > 0 && <WebResults q={initial || q} />}</div>
     </>
   )
+}
+
+const TYPE_LABEL: Record<string, string> = { country: 'Country', development: 'Story', headline: 'Headline', price: 'Price', signal: 'Signal' }
+const RECENT = 'worldpulse.recent.v1'
+function readRecent(): string[] { try { return JSON.parse(localStorage.getItem(RECENT) || '[]') } catch { return [] } }
+function saveRecent(q: string) {
+  try { localStorage.setItem(RECENT, JSON.stringify([q, ...readRecent().filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 8))) } catch { /* private mode */ }
 }
 
 // ---------------------------------------------------------------- Watchlist & alerts
@@ -251,7 +316,7 @@ export function Watch() {
   }
   return (
     <>
-      <PageHead title={`⭐ ${t('Watchlist & alerts')}`} sub="Saved only in this browser — no account needed. Alerts are checked each time you open WorldPulse."
+      <PageHead title={`⭐ ${t('Watchlist & alerts')}`} sub="Follow countries, prices and topics. Saved on this device only — no account needed."
         actions={<button type="button" className="icon-btn" onClick={resetName} aria-label={t('Change name')}>👤<span className="lbl"> {userName(user) ? `${userName(user)} · ${t('Change name')}` : t('Change name')}</span></button>} />
       <div className="banner warn"><span>🔔</span><div className="small">This free site has no server, so it cannot alert you while it is closed. Installing it as an app and enabling notifications shows alerts when you open it. For continuous alerts, run the free self-hosted engine (see About &amp; sources).</div></div>
       <div className="grid g2">

@@ -7,6 +7,7 @@ limit. Every file carries generated_at so the site can flag stale data.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sqlite3
 from collections import Counter, defaultdict
@@ -19,9 +20,33 @@ from .briefings import country_briefing
 import os
 from xml.sax.saxutils import escape
 from .db import uj
-from .gazetteer import COUNTRIES
+from .gazetteer import COUNTRIES, find_countries
 from .processing.classify import LABELS
-from .processing.normalize import now_iso, to_iso
+from .processing.normalize import now_iso, parse_iso, to_iso
+
+
+# local items that are not world news (weather readings, county alerts, ballot guides…)
+_LOCAL = re.compile(r"\b(daily temperature|temperature (high|low)|county\b.*\b(advisory|warning|watch)|(advisory|warning|watch)\b.*\bcounty|"
+                    r"school board|high school|city council|sheriff|congressional district|polling place|how to vote|"
+                    r"weather forecast|traffic|lottery|obituar|road closure|local news)\b", re.I)
+
+
+def front_worthy(e: dict) -> bool:
+    """World-relevant and confirmed: what may appear on the front page."""
+    if e.get("local"):
+        return False
+    if e["origin"] != "news_cluster":
+        return e["category"] == "natural_disasters" and (e.get("magnitude") or 0) >= 5.8 or e["verification"] == "official_alert"
+    return e["verification"] != "single_source_report"
+
+
+def importance(e: dict) -> float:
+    """Support (verification + outlets) discounted by age: a fresh big story beats an old one."""
+    from datetime import datetime, timezone
+    rank = {"instrument_observation": 3, "official_alert": 3, "official_statement": 2.5, "multi_source_reporting": 2, "single_source_report": 0.5}
+    d = parse_iso(e.get("started_at") or e["first_detected"])
+    hours = max(0.0, (datetime.now(timezone.utc) - d).total_seconds() / 3600) if d else 72
+    return (rank.get(e["verification"], 1) * 2 + min(e["outlets"], 15)) / (1 + hours / 24) ** 1.2
 
 
 def _since(**kw) -> str:
@@ -136,6 +161,18 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
         summ = ai.summary_for(conn, e["id"])
         light["who"] = [x["name"] for x in ents if x["kind"] in ("person", "organisation") and x["mentions"] >= 2][:3]
         light["disputed"] = bool(disputes)
+        # country from places the AI found and the reports' own text, when the headline names none
+        if not light["country"]:
+            txt = " ".join(x["name"] for x in ents if x["kind"] == "place")
+            if e["cluster_id"]:
+                txt += " " + " ".join((a["excerpt"] or "") for a in conn.execute(
+                    "SELECT excerpt FROM articles WHERE cluster_id=? AND excerpt IS NOT NULL LIMIT 5", (e["cluster_id"],)))
+            found = sorted(((v, k) for k, v in find_countries(txt).items() if v >= 0.9), reverse=True)
+            if found:
+                light["country"] = found[0][1]
+                light["countries"] = list(dict.fromkeys([found[0][1], *light["countries"]]))
+        if _LOCAL.search(e["title"]):
+            light["local"] = True
         light["ai"] = bool(summ)
         # one-line summary for cards: the checked AI summary, else the outlet's own excerpt (quoted, not rewritten)
         if summ:
@@ -169,6 +206,9 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                   }}
         _write(out / "events" / f"{e['id']}.json", detail)
     sizes["events.json"] = _write(out / "events.json", {"generated_at": gen, "window_days": 7, "events": events})
+    # small file for the front page: loads instantly, the full list follows in the background
+    front = sorted((x for x in events if front_worthy(x)), key=importance, reverse=True)[:80]
+    sizes["front.json"] = _write(out / "front.json", {"generated_at": gen, "events": front})
 
     # ---- signals (30 days)
     sigs = [dict(r) | {"evidence": uj(r["evidence"], [])} for r in

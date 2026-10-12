@@ -300,3 +300,10 @@ export function LearnLinks({ text }: { text: string }) {
   if (!hits.length) return null
   return <div className="row small" style={{ marginTop: 6 }}><span className="muted">📘 {t('Learn')}:</span>{hits.map(([, id, label]) => <a key={id} href={`#/learn/${id}`}>{label}</a>)}</div>
 }
+
+/** Opens a prefilled public GitHub report for a wrong or misleading item (free GitHub account needed). */
+export function ReportButton({ title, path }: { title: string; path: string }) {
+  const link = `${location.origin}${location.pathname}#${path}`
+  const href = `https://github.com/Vks-Nagpur/worldpulse/issues/new?template=wrong_item.yml&title=${encodeURIComponent('Wrong item: ' + title.slice(0, 90))}&link=${encodeURIComponent(link)}`
+  return <a className="icon-btn" href={href} target="_blank" rel="noopener noreferrer" title="Report a mistake" aria-label="Report a mistake">🚩<span className="lbl"> Report a mistake</span></a>
+}

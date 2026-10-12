@@ -13,7 +13,7 @@ export function Policy({ query }: { query: string }) {
   const [tab, setTab] = useState<'official' | 'banks' | 'elections' | 'corrections'>((new URLSearchParams(query).get('tab') as 'official') || 'official')
   return (
     <>
-      <PageHead title={`🏛️ ${t('Policy & elections')}`} sub="What governments, central banks and international institutions announced, election-related reporting, and corrections to earlier items."
+      <PageHead title={`🏛️ ${t('Policy & elections')}`} sub="What governments, central banks and bodies like the UN announced, plus election news."
         actions={<ShareButton title="WorldPulse policy" path={`/policy?tab=${tab}`} />} />
       <div className="tabs">
         <button type="button" className={tab === 'official' ? 'on' : ''} onClick={() => setTab('official')}>📜 {t('Official announcements')}</button>
@@ -106,7 +106,7 @@ export function Briefings({ query }: { query: string }) {
   const w = wk.data?.weeks.find((x) => x.week === week) || wk.data?.weeks[0]
   return (
     <>
-      <PageHead title={`📋 ${t('Briefings')}`} sub="Written in two steps: facts and their sources are pulled from stored data, then sentences are written only from those facts. Every line is numbered to its source."
+      <PageHead title={`📋 ${t('Briefings')}`} sub="Short written summaries of the day and week. Every line has a number you can tap to see its source."
         actions={<><ShareButton title="WorldPulse briefing" path={`/briefings?b=${k}`} /><PrintButton /></>} />
       <div style={{ marginBottom: 12 }}><Chips scroll value={k} onChange={setK} options={opts} /></div>
       {k !== 'weekly' ? <div className="card">{b ? <BriefingView b={b} /> : <Empty>No briefing.</Empty>}</div> : !w ? <Loading /> : (

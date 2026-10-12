@@ -13,7 +13,7 @@ export type Event = {
   id: string; title: string; category: string; country?: string | null; countries: string[]; lat?: number | null; lon?: number | null
   started_at?: string | null; first_detected: string; last_updated: string; origin: string; verification: string; confidence: number
   magnitude?: number | null; revision: number; outlets: number; why: string[]; refs: Ref[]; n_related: number
-  who?: string[]; disputed?: boolean; ai?: boolean; sum?: string; sum_hi?: string; sum_by?: string | null
+  who?: string[]; local?: boolean; disputed?: boolean; ai?: boolean; sum?: string; sum_hi?: string; sum_by?: string | null
 }
 export type Entity = { name: string; kind: string; mentions: number }
 export type Dispute = { kind: string; figures: { value: number; reported_by: string[] }[]; note: string }

@@ -18,7 +18,7 @@ export function About() {
   const tone: Record<string, string> = { ok: 'b-ok', failing: 'b-bad', disabled: 'b-mute', never_run: 'b-warn' }
   return (
     <>
-      <PageHead title={`🧪 ${t('About & sources')}`} sub="Where every number comes from, whether each source worked on the latest run, and how WorldPulse works. Free for everyone: no sign-in, no ads, no paid data." />
+      <PageHead title={`🧪 ${t('About & sources')}`} sub="Where everything comes from and how WorldPulse works. Free for everyone — no sign-in, no ads." />
       <div className="grid g2">
         <div className="card">
           <h3>🩺 Data status</h3>
@@ -71,7 +71,7 @@ export function Learn({ id }: { id?: string }) {
   const ex = EXPLAINERS.find((x) => x.id === id)
   return (
     <>
-      <PageHead title={`📘 ${t('Learn')}`} sub="Short explainers for topics that come up often. Each links to official references." />
+      <PageHead title={`📘 ${t('Learn')}`} sub="Simple explanations of words and places that come up in the news." />
       {ex && (
         <div className="card explainer" style={{ marginBottom: 14 }}>
           <h3>{ex.title}</h3>{ex.body.map((p) => <p key={p}>{p}</p>)}

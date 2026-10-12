@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { DotMap, LineChart, StackedBars } from '../components/charts'
-import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, VerifBadge } from '../components/ui'
+import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, VerifBadge, ReportButton } from '../components/ui'
 import type { Article, EventDetail as ED, History, Signal } from '../data'
 import { TOPIC_PLAIN } from '../components/story'
 import { ExplainButton } from '../components/explain'
@@ -23,7 +23,7 @@ export function EventDetail({ id }: { id: string }) {
   return (
     <>
       <PageHead title={e.title} sub={<span className="row"><VerifBadge v={e.verification} /><CatLabel c={e.category} /><span className="small">{VERIF[e.verification]?.tip}</span></span>}
-        actions={<><ExplainButton e={e} names={by} /><ShareButton title={e.title} path={`/event/${e.id}`} /></>} />
+        actions={<><ExplainButton e={e} names={by} /><ShareButton title={e.title} path={`/event/${e.id}`} /><ReportButton title={e.title} path={`/event/${e.id}`} /></>} />
       <div className="grid g2">
         <div className="card"><h3>Details</h3>
           <div className="bg-panel" style={{ marginTop: 6, marginBottom: 10 }}><div className="bg-row"><span className="bg-k">💡 In simple words</span><span>{TOPIC_PLAIN[e.category] || TOPIC_PLAIN.general} {VERIF[e.verification]?.tip}</span></div></div>
@@ -83,21 +83,27 @@ export function Signals() {
   const { data, error } = useData<{ signals: Signal[] }>('signals.json')
   const hist = useData<History>('history.json')
   const [tp, setTp] = useState('all')
+  const [weak, setWeak] = useState(false)
   const f = useFilters()
   const { regionOf } = useCountries()
   if (error) return <ErrorBox error={error} />
   if (!data) return <Loading />
   const counts = data.signals.reduce<Record<string, number>>((a, s) => ({ ...a, [s.signal_type]: (a[s.signal_type] || 0) + 1 }), {})
-  const list = data.signals.filter((s) => (tp === 'all' || s.signal_type === tp) && (!f.country || s.country === f.country) && (!f.region || regionOf(s.country) === f.region))
+  const all = data.signals.filter((s) => (tp === 'all' || s.signal_type === tp) && (!f.country || s.country === f.country) && (!f.region || regionOf(s.country) === f.region))
+  const strong = all.filter((s) => s.confidence !== 'low')
+  const list = weak ? all : strong
   const days = hist.data ? [...new Set(hist.data.signals_per_day.map((r) => r[0]))].sort().slice(-30) : []
   const types = hist.data ? [...new Set(hist.data.signals_per_day.map((r) => r[1]))] : []
   return (
     <>
-      <PageHead title={`⚡ ${t('Signals')}`} sub="Unusual changes in observable data. A signal says a number is far from its recent normal — it is not a prediction."
+      <PageHead title={`⚡ ${t('Signals')}`} sub="Numbers that suddenly moved far from normal — prices, news volume, internet access, earthquakes. A warning light, not a prediction."
         actions={<DownloadButton name="signals" rows={() => list.map((s) => ({ detected: s.detected_at, type: s.signal_type, title: s.title, country: s.country, observed: s.observed, baseline: s.baseline, pct_change: s.pct_change, confidence: s.confidence, data_as_of: s.data_freshness, limitations: s.limitations }))} />} />
       <div style={{ marginBottom: 12 }}><Chips scroll value={tp} onChange={setTp} options={Object.entries(TYPES).filter(([k]) => k === 'all' || counts[k]).map(([v, l]) => ({ v, label: `${v !== 'all' ? sigIcon(v) + ' ' : ''}${l}${v !== 'all' ? ` (${counts[v]})` : ''}` }))} /></div>
       <div className="grid g2">
-        <div className="card"><h3>Detections (30 days)</h3><div className="list">{list.map((s) => <SignalItem key={s.id} s={s} />)}</div>{!list.length && <Empty>No signals for this selection.</Empty>}</div>
+        <div className="card"><h3>Detections (30 days)</h3>
+          {!weak && <p className="sub">Showing the {strong.length} with good evidence.</p>}
+          <div className="list">{list.map((s) => <SignalItem key={s.id} s={s} />)}</div>{!list.length && <Empty>No strong signals for this selection.</Empty>}
+          {all.length > strong.length && <button type="button" className="icon-btn more-btn" onClick={() => setWeak(!weak)}>{weak ? 'Show only strong evidence' : `Show ${all.length - strong.length} weaker signals too`}</button>}</div>
         <div className="card"><h3>Signal history</h3><p className="sub">Detections per day by type.</p>
           <StackedBars days={days} stacks={types.map((x, i) => ({ name: TYPES[x] || x, color: `var(--c${(i % 8) + 1})`, values: days.map((d) => hist.data!.signals_per_day.find((r) => r[0] === d && r[1] === x)?.[2] || 0) }))} /></div>
       </div>
@@ -149,7 +155,7 @@ export function News() {
   if (error) return <ErrorBox error={error} />
   return (
     <>
-      <PageHead title={`📰 ${t('All news')}`} sub="Every unique headline collected in the last 72 hours. WorldPulse stores headlines and short excerpts only and links to the original."
+      <PageHead title={`📰 ${t('All news')}`} sub="Every headline from the last 3 days, duplicates removed. Tap one to read it on the original site."
         actions={<DownloadButton name="headlines" rows={() => rows.map((a) => ({ published: a.d, headline: a.t, publisher: a.p, topic: cat(a.c).label, countries: a.k.join(' '), language: a.l, url: a.u }))} />} />
       <FilterBar hideFocus />
       <div style={{ marginBottom: 10 }}><Chips value={lang} onChange={setLang} options={[{ v: 'all', label: 'All languages' }, { v: 'en', label: 'English' }, { v: 'hi', label: 'हिन्दी' }]} /></div>

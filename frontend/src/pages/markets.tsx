@@ -53,7 +53,7 @@ export function Markets({ query }: { query: string }) {
   }, [lt.data, kind])
   return (
     <>
-      <PageHead title={t('Markets')} sub="Delayed end-of-day prices from free public sources (Yahoo Finance chart endpoint with Stooq backup, ECB reference rates, CoinGecko). Not live — every value shows its date."
+      <PageHead title={t('Markets')} sub={<>Daily prices for oil, gold, shares, currencies and crypto. Not live — each price shows its date. <span className="faint">Sources: Yahoo Finance, Stooq, European Central Bank, CoinGecko.</span></>}
         actions={<><ShareButton title="WorldPulse markets" path={`/markets?s=${encodeURIComponent(sel)}`} /><DownloadButton name="markets" rows={() => (lt.data || []).map(({ spark, ...r }) => (void spark, r))} /></>} />
       <div className="tabs">
         <button type="button" className={tab === 'prices' ? 'on' : ''} onClick={() => setTab('prices')}>📈 Prices</button>
@@ -178,7 +178,7 @@ export function Energy() {
   const news = useMemo(() => (ev.data ? filterEvents(ev.data.events, f, regionOf, 'energy') : null), [ev.data, f, regionOf])
   return (
     <>
-      <PageHead title={`🛢️ ${t('Energy')}`} sub="Oil, gas and power: prices and supply news side by side. Showing them together does not mean one caused the other."
+      <PageHead title={`🛢️ ${t('Energy')}`} sub="Oil and gas prices next to energy news. Seeing them together doesn’t mean one caused the other."
         actions={<ShareButton title="WorldPulse energy" path="/energy" />} />
       <Tiles items={lt.data} ids={[['mkt:BZ=F', 'Brent crude'], ['mkt:CL=F', 'WTI crude'], ['mkt:NG=F', 'Natural gas (Henry Hub)']]} selected={sel} onPick={setSel} />
       <div className="card" style={{ marginTop: 14 }}>

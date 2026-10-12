@@ -127,6 +127,20 @@ export function filterEvents(events: Event[], f: Filters, regionOf: (iso2?: stri
 export const sortEvents = (rows: Event[]) => [...rows].sort((a, b) => ((VERIF[b.verification]?.rank || 0) * 2 + b.outlets) - ((VERIF[a.verification]?.rank || 0) * 2 + a.outlets) ||
   (b.started_at || b.first_detected).localeCompare(a.started_at || a.first_detected))
 
+/** Support discounted by age — a fresh big story beats an old one (same rule as the data export). */
+export function importance(e: Event): number {
+  const rank: Record<string, number> = { instrument_observation: 3, official_alert: 3, official_statement: 2.5, multi_source_reporting: 2, single_source_report: 0.5 }
+  const h = Math.max(0, (Date.now() - new Date(e.started_at || e.first_detected).getTime()) / 3.6e6)
+  return ((rank[e.verification] ?? 1) * 2 + Math.min(e.outlets, 15)) / Math.pow(1 + h / 24, 1.2)
+}
+/** World-relevant and confirmed — what may appear on the front page. */
+export function frontWorthy(e: Event): boolean {
+  if (e.local) return false
+  if (e.origin !== 'news_cluster') return (e.category === 'natural_disasters' && (e.magnitude || 0) >= 5.8) || e.verification === 'official_alert'
+  return e.verification !== 'single_source_report'
+}
+export const byImportance = (rows: Event[]) => [...rows].sort((a, b) => importance(b) - importance(a))
+
 export { t }
 
 export const evidenceLabel = (c: string) => (c === 'high' ? 'Strong evidence' : c === 'medium' ? 'Some evidence' : 'Weak evidence')

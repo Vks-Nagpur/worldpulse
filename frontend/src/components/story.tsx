@@ -80,7 +80,7 @@ export function StoryFacts({ e, names, dark }: { e: Event; names: Record<string,
   )
 }
 
-const JUNK = /\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|news|largest|fridges?|usgs|gdacs|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|county|state|ceasefire|war|crisis|deal)\b/i
+const JUNK = /\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|news|largest|fridges?|usgs|gdacs|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|county|state|slips?|rises?|falls?|stocks?|shares|hormuz|strait|ceasefire|war|crisis|deal)\b/i
 const NATIONALITY = /^(american|british|chinese|russians?|ukrainians?|israelis?|palestinians?|iranians?|indians?|pakistanis?|saudis?|french|germans?|european|arabs?|western)$/i
 /** Names of people/organisations only — no country names or nationality words. */
 function whoClean(who: string[] | undefined, names: Record<string, CountrySummary>): string[] {
@@ -118,7 +118,7 @@ export function LeadStory({ e, names, n, of }: { e: Event; names: Record<string,
   )
 }
 
-export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, CountrySummary>; rank?: number }) {
+export function StoryCard({ e, names, rank, fresh }: { e: Event; names: Record<string, CountrySummary>; rank?: number; fresh?: boolean }) {
   const lang = useLang()
   const c = cat(e.category)
   const sm = storySummary(e, lang)
@@ -129,6 +129,7 @@ export function StoryCard({ e, names, rank }: { e: Event; names: Record<string, 
       <div className="story-body">
         <div className="story-top">
           {rank != null && <span className="story-rank">{rank}</span>}
+          {fresh && <span className="new-dot" title="New since your last visit">New</span>}
           <span className="story-cat" style={{ color: c.color }}>{c.icon} {c.label}</span>
           {src?.p && <span className="faint">· {src.p}</span>}
         </div>

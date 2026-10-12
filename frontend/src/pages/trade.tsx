@@ -28,7 +28,7 @@ export function Trade({ query }: { query: string }) {
   const [tab, setTab] = useState<'sanctions' | 'routes' | 'supply' | 'news'>((new URLSearchParams(query).get('tab') as 'sanctions') || 'sanctions')
   return (
     <>
-      <PageHead title={`🚢 ${t('Trade & shipping')}`} sub="Sanctions, tariffs and export controls, shipping chokepoints, supply chains and trade news — all from public sources."
+      <PageHead title={`🚢 ${t('Trade & shipping')}`} sub="Sanctions, import taxes (tariffs), busy shipping routes and supply chains — what affects buying and selling between countries."
         actions={<ShareButton title="WorldPulse trade" path={`/trade?tab=${tab}`} />} />
       <div className="tabs">
         <button type="button" className={tab === 'sanctions' ? 'on' : ''} onClick={() => setTab('sanctions')}>⚖️ {t('Sanctions tracker')}</button>
@@ -151,7 +151,7 @@ export function Conflict() {
   const pts = cur && hist.data ? (cur.startsWith('topic:') ? hist.data.topic_volume[cur.slice(6)] : hist.data.country_volume[cur.slice(8)]) || [] : []
   return (
     <>
-      <PageHead title={`🛡️ ${t('Conflict & security')}`} sub="Wars, military incidents, security, sanctions and diplomacy. “One outlet” means the report is not yet corroborated."
+      <PageHead title={`🛡️ ${t('Conflict & security')}`} sub="Wars, attacks and security news. “One outlet” means only one news source has reported it so far."
         actions={<ShareButton title="WorldPulse conflict & security" path="/conflict" />} />
       <FilterBar events={ev.data?.events} hideFocus />
       {ev.error && <ErrorBox error={ev.error} />}

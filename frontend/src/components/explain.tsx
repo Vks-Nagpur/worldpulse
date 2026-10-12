@@ -6,7 +6,7 @@ import { useLang } from '../i18n'
 import { EXPLAINERS } from '../pages/explainers'
 import { cat, compact, fmtDate, safeUrl, VERIF, ago } from '../util'
 import { TOPIC_PLAIN } from './story'
-import { EXPLAINER_KEYS } from './ui'
+import { EXPLAINER_KEYS, ReportButton } from './ui'
 
 // "Understand this news": a plain-language explanation assembled only from
 // stored facts (sources, timeline, connected stories, Wikipedia background,
@@ -134,13 +134,13 @@ export function ExplainPanel({ e, names, onClose }: { e: Event; names: Record<st
           <div style={{ minWidth: 0 }}><div className="small muted">Understand this news</div><b className="explain-title">{e.title}</b></div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
-        {!ready ? <div className="explain-thinking"><span /><span /><span /> Gathering the background…</div> : <Typewriter blocks={blocks} ai={!!d?.summary} />}
+        {!ready ? <div className="explain-thinking"><span /><span /><span /> Gathering the background…</div> : <Typewriter blocks={blocks} ai={!!d?.summary} e={e} />}
       </div>
     </>
   )
 }
 
-function Typewriter({ blocks, ai }: { blocks: Block[]; ai?: boolean }) {
+function Typewriter({ blocks, ai, e }: { blocks: Block[]; ai?: boolean; e: Event }) {
   const total = blocks.reduce((n, b) => n + b.text.length, 0)
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
   const [shown, setShown] = useState(reduce ? total : 0)
@@ -190,6 +190,7 @@ function Typewriter({ blocks, ai }: { blocks: Block[]; ai?: boolean }) {
       <div className="explain-foot">
         {!done && <button type="button" className="btn ghost" onClick={() => setShown(total)}>Show all</button>}
         {'speechSynthesis' in window && <button type="button" className="btn ghost" onClick={speak}>{speaking ? '⏹ Stop' : '🔊 Read aloud'}</button>}
+        <ReportButton title={e.title} path={`/event/${e.id}`} />
         <span className="small faint">{ai ? 'Put together from the sources shown; the summary was checked against them.' : 'Written automatically from the sources shown — nothing added.'} Wikipedia text is CC BY-SA.</span>
       </div>
     </div>

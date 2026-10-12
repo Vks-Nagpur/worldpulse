@@ -65,7 +65,7 @@ export function Countries() {
   const max = Math.max(1, ...rows.map((c) => c.events_7d))
   return (
     <>
-      <PageHead title={`🌐 ${t('Countries')}`} sub="A profile for every country: risk indicators, developments, World Bank indicators, signals and a sourced briefing."
+      <PageHead title={`🌐 ${t('Countries')}`} sub="Pick a country to see its news, risk level, key numbers and a short summary."
         actions={<DownloadButton name="countries" rows={() => rows.map((c) => ({ country: c.name, iso2: c.iso2, region: c.region, capital: c.capital, developments_7d: c.events_7d, headlines_72h: c.news_72h, signals_30d: c.signals_30d, risk: c.risk == null ? '' : RISK[c.risk].label, population: c.population?.value, population_year: c.population?.period, gdp_usd: c.gdp?.value, gdp_year: c.gdp?.period }))} />} />
       <div className="frow" style={{ marginBottom: 12 }}>
         <input className="input" placeholder="Search a country, code or capital…" value={q} onChange={(e) => setQ(e.target.value)} />

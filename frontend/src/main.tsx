@@ -1,4 +1,4 @@
-import { lazy, StrictMode, Suspense, useEffect, useState, type ComponentType } from 'react'
+import { Component, lazy, StrictMode, Suspense, useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 import { Loading, ToastHost } from './components/ui'
@@ -10,7 +10,37 @@ import { setLang, t, useLang } from './i18n'
 import { ago, hoursSince } from './util'
 
 // Pages load on demand so the first screen is small and fast.
-const page = <T,>(f: () => Promise<Record<string, T>>, name: string) => lazy(() => f().then((m) => ({ default: m[name] as unknown as ComponentType<Record<string, string>> })))
+// After a new version is published, an open tab may ask for page files that no longer exist.
+// Try again once, then reload the page once to pick up the new version (never loops).
+const RELOADED = 'worldpulse.reloaded'
+function freshReload() {
+  try { if (sessionStorage.getItem(RELOADED) === '1') return false; sessionStorage.setItem(RELOADED, '1') } catch { return false }
+  location.reload()
+  return true
+}
+setTimeout(() => { try { sessionStorage.removeItem(RELOADED) } catch { /* ignore */ } }, 15000)
+addEventListener('vite:preloadError', (ev) => { if (freshReload()) ev.preventDefault() })
+const load = <T,>(f: () => Promise<T>): Promise<T> => f().catch(() => new Promise<T>((ok, bad) => setTimeout(() => f().then(ok, (err) => { freshReload(); bad(err) }), 800)))
+const page = <T,>(f: () => Promise<Record<string, T>>, name: string) => lazy(() => load(f).then((m) => ({ default: m[name] as unknown as ComponentType<Record<string, string>> })))
+
+/** Never a blank screen: if a page fails, say so in plain words and offer a reload. */
+class Boundary extends Component<{ children: ReactNode; resetKey: string }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidUpdate(prev: { resetKey: string }) { if (prev.resetKey !== this.props.resetKey && this.state.failed) this.setState({ failed: false }) }
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <div className="card" style={{ textAlign: 'center', padding: '36px 18px' }}>
+        <div style={{ fontSize: 40 }}>🔄</div>
+        <h3 style={{ margin: '8px 0' }}>This page didn’t load properly</h3>
+        <p className="sub">WorldPulse may have just been updated. Reloading usually fixes it.</p>
+        <button type="button" className="btn" onClick={() => location.reload()}>Reload</button>
+        <a className="btn ghost" href="#/" style={{ marginLeft: 8 }}>Go home</a>
+      </div>
+    )
+  }
+}
 const Today = page(() => import('./pages/today'), 'Today')
 const Markets = page(() => import('./pages/markets'), 'Markets')
 const Energy = page(() => import('./pages/markets'), 'Energy')
@@ -151,7 +181,7 @@ function App() {
       </header>
       <main className="main">
         {stale && <div className="soft-note">🕒 News on this page was last updated {ago(meta.data!.generated_at)}. It refreshes automatically.</div>}
-        <Suspense fallback={<Loading rows={6} />}><div className="page" key={path}><Router path={path} query={query} /></div></Suspense>
+        <Boundary resetKey={path + query}><Suspense fallback={<Loading rows={6} />}><div className="page" key={path}><Router path={path} query={query} /></div></Suspense></Boundary>
         <footer className="site-foot">WorldPulse · free &amp; open source · built only from public sources{meta.data ? ` · updated ${ago(meta.data.generated_at)}` : ''} · <a href="#/about">About &amp; sources</a></footer>
       </main>
       <nav className="bottom-nav" aria-label="Main">
@@ -179,7 +209,7 @@ function App() {
 }
 const Logo = () => <svg width="20" height="20" viewBox="0 0 24 24"><path d="M2 13h4l3-7 5 13 3-6h5" stroke="white" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+createRoot(document.getElementById('root')!).render(<StrictMode><Boundary resetKey="app"><App /></Boundary></StrictMode>)
 
 // Offline support + installable app (production only).
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

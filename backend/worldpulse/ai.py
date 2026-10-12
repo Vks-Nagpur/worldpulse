@@ -183,7 +183,7 @@ taiwanese filipino vietnamese thai indonesian malaysian australian canadian mexi
 dutch belgian swiss swedish norwegian danish finnish greek hungarian romanian serbian georgian armenian azerbaijani kazakh belarusian qatari
 jordanian kuwaiti omani bahraini libyan tunisian moroccan algerian bangladeshi sri lankan nepali burmese kurdish""".split())
 _ENT_JUNK = re.compile(r"\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|exclusive|explainer|watch|"
-                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|second|third|fourth|fifth|sixth|county|fridges?|ceasefire|war|crisis|deal)\b", re.I)
+                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|second|third|fourth|fifth|sixth|county|slips?|rises?|falls?|stocks?|shares|fridges?|ceasefire|war|crisis|deal)\b", re.I)
 
 
 def _good_entity(name: str, kind: str) -> bool:
