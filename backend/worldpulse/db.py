@@ -252,6 +252,17 @@ MIGRATIONS: list[str] = [
         error TEXT NOT NULL
     );
     """,
+    # 2 — source tags, why-tagged terms, run statistics for quality checks
+    """
+    ALTER TABLE sources ADD COLUMN tags TEXT;
+    ALTER TABLE articles ADD COLUMN category_terms TEXT;
+    CREATE TABLE run_stats (
+        run_at TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value REAL NOT NULL,
+        PRIMARY KEY (run_at, key)
+    );
+    """,
 ]
 
 

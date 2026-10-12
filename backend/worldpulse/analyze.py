@@ -129,7 +129,9 @@ def _upsert_event(conn: sqlite3.Connection, e: dict) -> None:
     old = conn.execute("SELECT * FROM events WHERE id=?", (e["id"],)).fetchone()
     vals = {**e, "related_countries": j(e["related_countries"]), "source_refs": j(e["source_refs"]), "datasets": j(e["datasets"])}
     if old:
-        changed = any(str(old[k]) != str(vals[k]) for k in ("title", "verification", "magnitude", "country", "description"))
+        # a new headline or excerpt for the same story is not a correction;
+        # only a change in support level, magnitude or country creates a revision
+        changed = any(str(old[k]) != str(vals[k]) for k in ("verification", "magnitude", "country"))
         rev = old["revision"] + 1 if changed else old["revision"]
         if changed:
             conn.execute("INSERT OR IGNORE INTO event_revisions(event_id, revision, changed_at, snapshot) VALUES (?,?,?,?)",

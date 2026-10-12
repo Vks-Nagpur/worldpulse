@@ -16,7 +16,7 @@ from .collectors.rss import parse_feed
 from .db import j, log_error, tx
 from .gazetteer import COUNTRIES, find_countries
 from .http import FetchError, fetch
-from .processing.classify import classify
+from .processing.classify import classify, explain
 from .processing.dedup import Index, cluster_id_for
 from .processing.normalize import (canonical_url, clean_text, detect_language, normalize_title, now_iso, parse_date,
                                    split_google_title, url_id)
@@ -32,13 +32,14 @@ def sync_sources(conn: sqlite3.Connection, registry: dict) -> None:
     with tx(conn):
         for s in registry["sources"]:
             conn.execute(
-                """INSERT INTO sources(id,name,kind,url,category,country,language,source_type,interval_minutes,enabled)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)
+                """INSERT INTO sources(id,name,kind,url,category,country,language,source_type,interval_minutes,enabled,tags)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)
                    ON CONFLICT(id) DO UPDATE SET name=excluded.name, kind=excluded.kind, url=excluded.url,
                      category=excluded.category, country=excluded.country, language=excluded.language,
-                     source_type=excluded.source_type, interval_minutes=excluded.interval_minutes, enabled=excluded.enabled""",
+                     source_type=excluded.source_type, interval_minutes=excluded.interval_minutes, enabled=excluded.enabled,
+                     tags=excluded.tags""",
                 (s["id"], s["name"], s["kind"], s["url"], s.get("category"), s.get("country"), s.get("language"),
-                 s.get("source_type"), s.get("interval_minutes", 30), int(s.get("enabled", True))))
+                 s.get("source_type"), s.get("interval_minutes", 30), int(s.get("enabled", True)), j(s.get("tags", []))))
 
 
 def _due(row: sqlite3.Row, force: bool) -> bool:
@@ -163,6 +164,7 @@ class Collector:
         text = f"{title}. {summary or ''}"
         countries = find_countries(text)
         category, scores = classify(text, src["category"])
+        terms = explain(text, category) if category != "general" else []
         item = {"id": aid, "title": title, "norm_title": norm, "published_at": published, "collected_at": collected,
                 "countries": countries}
         dup = self.index.find_duplicate(item)
@@ -173,10 +175,10 @@ class Collector:
         self.conn.execute(
             """INSERT OR IGNORE INTO articles(id,source_id,url,canonical_url,title,norm_title,publisher,excerpt,language,
                published_at,collected_at,category,category_scores,countries,cluster_id,duplicate_of,duplicate_method,
-               is_official,processing_version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               is_official,processing_version,category_terms) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (aid, src["id"], link[:1000], canon[:1000], title, norm, clean_text(publisher, 100), clean_text(summary, 300),
              detect_language(text, lang), published, collected, category, j(scores), j(countries), cluster, dup_of, method,
-             int(src["source_type"] in ("government", "institution")), PROCESSING_VERSION))
+             int(src["source_type"] in ("government", "institution")), PROCESSING_VERSION, j(terms)))
         if not dup:
             self.index.add(item)
         return 1
@@ -290,19 +292,29 @@ class Collector:
         n, errors = 0, []
         for m in self.registry.get("markets", []):
             try:
-                r = fetch(f"{row['url']}{quote(m['symbol'])}?range=6mo&interval=1d")
+                r = fetch(f"{row['url']}{quote(m['symbol'])}?range=1y&interval=1d")
                 chart = ds.parse_yahoo_chart(r.content)
                 with tx(self.conn):
                     n += self._store_series(f"mkt:{m['symbol']}", chart["points"],
                                             f"Yahoo Finance chart (delayed; exchange {chart['exchange']}; last trade {chart['market_time']})")
             except Exception as e:
+                # free backup: Stooq daily CSV, when a symbol mapping exists
+                alt = m.get("stooq")
+                if alt:
+                    try:
+                        pts = ds.parse_stooq_csv(fetch(f"https://stooq.com/q/d/l/?s={quote(alt)}&i=d").content)[-260:]
+                        with tx(self.conn):
+                            n += self._store_series(f"mkt:{m['symbol']}", pts, f"Stooq daily CSV (delayed; backup for {m['symbol']})")
+                        continue
+                    except Exception as e2:
+                        e = f"{e}; backup Stooq: {e2}"
                 errors.append(f"{m['symbol']}: {e}")
         if errors and n == 0:
             raise FetchError("; ".join(errors)[:500])
         return "ok", n, n
 
     def _do_fx(self, row) -> tuple[str, int, int]:
-        start = (datetime.now(timezone.utc) - timedelta(days=200)).date().isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=400)).date().isoformat()
         quotes = ",".join(self.registry.get("fx_quotes", []))
         r = fetch(f"{row['url']}{start}..?from=USD&to={quotes}")
         series = ds.parse_frankfurter_series(r.content)
@@ -315,7 +327,7 @@ class Collector:
     def _do_crypto(self, row) -> tuple[str, int, int]:
         n = 0
         for coin in self.registry.get("crypto", []):
-            r = fetch(f"{row['url']}coins/{coin}/market_chart?vs_currency=usd&days=180&interval=daily")
+            r = fetch(f"{row['url']}coins/{coin}/market_chart?vs_currency=usd&days=365&interval=daily")
             with tx(self.conn):
                 n += self._store_series(f"crypto:{coin}", ds.parse_coingecko_chart(r.content), "CoinGecko public API (aggregated spot price)")
         return "ok", n, n

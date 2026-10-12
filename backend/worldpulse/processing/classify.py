@@ -26,20 +26,20 @@ _RULES: dict[str, list[tuple[str, float]]] = {
                     (r"coup", 3), (r"regime", 1.5), (r"protest\w*", 1.5), (r"unrest", 2), (r"opposition leader", 1.5)],
     "diplomacy": [(r"diplomat\w*", 3), (r"summit", 2.5), (r"foreign minister", 3), (r"ambassador", 2.5), (r"bilateral", 2.5),
                   (r"talks", 1.5), (r"treaty", 2.5), (r"ceasefire", 2), (r"peace (deal|talks|plan|agreement)", 3), (r"united nations|\bun\b security council", 2),
-                  (r"envoy", 2.5), (r"state visit", 3), (r"embassy", 2)],
+                  (r"envoy", 2.5), (r"state visit", 3), (r"embassy", 2), (r"nobel peace prize", 3), (r"foreign policy", 2)],
     "military_security": [(r"military", 2.5), (r"troops?", 2.5), (r"airstrikes?|air strikes?", 3), (r"missiles?", 3), (r"drones? (attack|strike)", 3),
-                          (r"\bwar\b", 2), (r"shelling", 3), (r"armed forces|army|navy", 2), (r"militant\w*|insurgen\w*", 2.5),
+                          (r"\bwar\b(?! of words)", 2), (r"shelling", 3), (r"armed forces|army|navy", 2), (r"militant\w*|insurgen\w*", 2.5),
                           (r"terror\w*", 2.5), (r"killed in (an )?attack|bomb(ing)?s?", 2.5), (r"border clash\w*", 3), (r"defen[cs]e ministry", 2), (r"hostages?", 2)],
     "elections": [(r"election\w*", 3), (r"\bvot(e|es|ers|ing)\b", 2.5), (r"ballot\w*", 3), (r"polls? (show|open|close)", 2.5), (r"referendum", 3),
                   (r"candidate\w*", 2), (r"campaign trail", 2), (r"electoral", 3), (r"inaugurat\w*", 2)],
     "economics": [(r"\bgdp\b", 3), (r"inflation", 3), (r"recession", 3), (r"central bank", 3), (r"interest rates?", 2.5), (r"unemployment|jobless", 2.5),
-                  (r"econom(y|ic|ies)", 2), (r"budget deficit|fiscal", 2.5), (r"\bimf\b|world bank", 2.5), (r"debt", 1.5), (r"rate (cut|hike)", 3), (r"consumer prices", 2.5)],
+                  (r"econom(y|ic|ies)", 2), (r"budget deficit|fiscal", 2.5), (r"\bimf\b|world bank", 2.5), (r"debt", 1.5), (r"rate (cut|hike)", 3), (r"repo rate", 3.5), (r"monetary policy", 3), (r"consumer prices", 2.5)],
     "financial_markets": [(r"stocks?\b", 2.5), (r"shares", 2), (r"wall street", 3), (r"s&p 500|nasdaq|dow jones|ftse|nikkei|sensex|nifty|dax|hang seng", 3),
                           (r"bond yields?|treasur(y|ies)", 2.5), (r"bitcoin|crypto\w*", 2.5), (r"\bipo\b", 2.5), (r"market (rally|selloff|sell-off|rout)", 3),
                           (r"investors?", 1.5), (r"currenc(y|ies)|\byuan\b|\brupee\b|\byen\b|\beuro\b|dollar", 1.5), (r"gold prices?", 2.5)],
     "energy": [(r"\boil\b", 2.5), (r"crude", 3), (r"\bopec\+?", 3), (r"natural gas|\blng\b", 3), (r"pipeline", 2), (r"refiner(y|ies)", 2.5),
                (r"power (grid|outage|plant)", 2.5), (r"electricity", 2), (r"nuclear (plant|power|reactor)", 2.5), (r"renewable|solar|wind power", 2), (r"energy", 1.5)],
-    "trade": [(r"tariffs?", 3), (r"\btrade\b", 2), (r"exports?|imports?", 2), (r"\bwto\b", 3), (r"supply chains?", 2.5), (r"shipping|freight|cargo", 2),
+    "trade": [(r"tariffs?", 3), (r"export controls?|export bans?", 3.5), (r"freight rates?|container ships?|tankers?", 2.5), (r"\btrade\b", 2), (r"exports?|imports?", 2), (r"\bwto\b", 3), (r"supply chains?", 2.5), (r"shipping|freight|cargo", 2),
               (r"trade (deal|war|agreement|deficit|surplus)", 3), (r"embargo", 2.5), (r"customs", 1.5), (r"red sea|strait of hormuz|suez|panama canal", 2)],
     "natural_disasters": [(r"earthquakes?|quake|tremor", 3.5), (r"tsunami", 3.5), (r"hurricanes?|typhoons?|cyclones?", 3.5), (r"floods?|flooding", 3),
                           (r"wildfires?|bushfires?|forest fires?", 3), (r"volcan\w*|eruption", 3.5), (r"landslides?|mudslides?", 3), (r"drought", 2.5),
@@ -58,6 +58,19 @@ _COMPILED = {cat: [(re.compile(r"\b" + p + r"\b" if not p.startswith("\\b") else
 
 # A source configured with a category (e.g. CISA advisories) adds weight.
 SOURCE_PRIOR = 2.0
+
+
+def explain(text: str, category: str, limit: int = 4) -> list[str]:
+    """The words in ``text`` that made it score for ``category`` (shown as
+    "why this topic" on the site)."""
+    out: list[str] = []
+    for rx, _w in _COMPILED.get(category, []):
+        m = rx.search(text)
+        if m and m.group(0).lower() not in out:
+            out.append(m.group(0).lower())
+        if len(out) >= limit:
+            break
+    return out
 
 
 def classify(text: str, source_category: str | None = None) -> tuple[str, dict[str, float]]:

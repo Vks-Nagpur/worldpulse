@@ -14,7 +14,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import PROCESSING_VERSION, __version__
+from . import insights
 from .briefings import country_briefing
+import os
+from xml.sax.saxutils import escape
 from .db import uj
 from .gazetteer import COUNTRIES
 from .processing.classify import LABELS
@@ -32,10 +35,36 @@ def _write(path: Path, data) -> int:
     return len(raw)
 
 
-def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: list[dict]) -> dict:
+SITE_URL = os.environ.get("WORLDPULSE_SITE_URL", "https://vks-nagpur.github.io/worldpulse/")
+
+
+def write_feed(path: Path, events: list[dict], gen: str) -> None:
+    """RSS 2.0 feed of the best-supported developments of the last 48 hours."""
+    from email.utils import format_datetime
+    from .processing.normalize import parse_iso
+    rank = {"instrument_observation": 5, "official_alert": 4, "official_statement": 3, "multi_source_reporting": 2}
+    cut = _since(hours=48)
+    top = sorted([e for e in events if e["verification"] in rank and (e["started_at"] or e["first_detected"]) >= cut],
+                 key=lambda e: -(rank[e["verification"]] * 2 + e["outlets"]))[:40]
+    items = []
+    for e in top:
+        dt = parse_iso(e["started_at"] or e["first_detected"])
+        src = e["refs"][0] if e["refs"] else {}
+        desc = f"{LABELS.get(e['category'], e['category'])} · {e['outlets']} outlet(s) · {e['verification'].replace('_', ' ')}" + (f" · {src.get('p')}" if src.get("p") else "")
+        items.append(f"<item><title>{escape(e['title'])}</title><link>{escape(SITE_URL)}#/event/{escape(e['id'])}</link>"
+                     f"<guid isPermaLink=\"false\">{escape(e['id'])}</guid><pubDate>{format_datetime(dt) if dt else ''}</pubDate>"
+                     f"<description>{escape(desc)}</description></item>")
+    xml = ('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>WorldPulse — top developments</title>'
+           f"<link>{escape(SITE_URL)}</link><description>Best-supported developments from public sources (last 48 hours).</description>"
+           f"<lastBuildDate>{format_datetime(parse_iso(gen))}</lastBuildDate>" + "".join(items) + "</channel></rss>")
+    path.write_text(xml)
+
+
+def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: list[dict], quality_report: dict | None = None) -> dict:
     gen = now_iso()
-    if (out / "countries").exists():
-        shutil.rmtree(out / "countries")
+    for sub in ("countries", "events"):
+        if (out / sub).exists():
+            shutil.rmtree(out / sub)
     sizes = {}
 
     # ---- sources & health
@@ -43,7 +72,7 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
     for s in conn.execute("SELECT * FROM sources ORDER BY kind, name"):
         last = conn.execute("SELECT * FROM fetch_logs WHERE source_id=? ORDER BY id DESC LIMIT 1", (s["id"],)).fetchone()
         srcs.append({"id": s["id"], "name": s["name"], "kind": s["kind"], "type": s["source_type"], "category": s["category"],
-                     "country": s["country"], "language": s["language"], "url": s["url"], "enabled": bool(s["enabled"]),
+                     "country": s["country"], "language": s["language"], "url": s["url"], "enabled": bool(s["enabled"]), "tags": uj(s["tags"], []),
                      "interval_minutes": s["interval_minutes"], "last_success": s["last_success"], "last_attempt": s["last_attempt"],
                      "last_error": s["last_error"], "failures": s["consecutive_failures"],
                      "last_items": last["items"] if last else None, "last_new": last["new_items"] if last else None,
@@ -66,7 +95,7 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
     news = [{"id": r["id"], "t": r["title"], "u": r["url"], "p": r["publisher"], "x": r["excerpt"] or None,
              "d": r["published_at"] or r["collected_at"], "g": r["collected_at"], "c": r["category"],
              "k": [k for k, v in uj(r["countries"], {}).items() if v >= 0.9], "cl": r["cluster_id"], "n": r["cn"],
-             "o": bool(r["is_official"]), "s": r["source_id"], "l": r["language"]} for r in rows]
+             "o": bool(r["is_official"]), "s": r["source_id"], "l": r["language"], "w": uj(r["category_terms"], [])} for r in rows]
     dup_total = conn.execute("SELECT count(*) FROM articles WHERE duplicate_of IS NOT NULL AND collected_at >= ?", (_since(hours=72),)).fetchone()[0]
     dup_methods = dict(conn.execute("SELECT duplicate_method, count(*) FROM articles WHERE duplicate_of IS NOT NULL AND collected_at >= ? GROUP BY 1",
                                     (_since(hours=72),)).fetchall())
@@ -82,15 +111,35 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                                         "confidence": r["confidence"], "observed": bool(r["observed"])})
     evrows = conn.execute("SELECT * FROM events WHERE last_updated >= ? ORDER BY last_updated DESC LIMIT 1200", (_since(days=7),)).fetchall()
     events = []
+    titles = {e["id"]: e["title"] for e in evrows}
     for e in evrows:
         refs = uj(e["source_refs"], [])
-        events.append({"id": e["id"], "title": e["title"], "category": e["category"], "description": e["description"], "country": e["country"],
-                       "countries": uj(e["related_countries"], []), "lat": e["lat"], "lon": e["lon"], "started_at": e["started_at"],
-                       "first_detected": e["first_detected"], "last_updated": e["last_updated"], "origin": e["origin"],
-                       "verification": e["verification"], "confidence": e["extraction_confidence"], "magnitude": e["magnitude"],
-                       "revision": e["revision"], "outlets": len({r.get("publisher") for r in refs}),
-                       "refs": [{"t": r["title"], "u": r.get("url"), "p": r.get("publisher"), "d": r.get("published_at")} for r in refs[:6]],
-                       "related": sorted(rels.get(e["id"], []), key=lambda x: -x["confidence"])[:8]})
+        related = sorted(rels.get(e["id"], []), key=lambda x: -x["confidence"])[:8]
+        why = []
+        if e["cluster_id"]:
+            t = conn.execute("SELECT category_terms FROM articles WHERE cluster_id=? AND category_terms IS NOT NULL AND category_terms != '[]' LIMIT 1",
+                             (e["cluster_id"],)).fetchone()
+            why = uj(t["category_terms"], []) if t else []
+        light = {"id": e["id"], "title": e["title"], "category": e["category"], "country": e["country"],
+                 "countries": uj(e["related_countries"], []), "lat": e["lat"], "lon": e["lon"], "started_at": e["started_at"],
+                 "first_detected": e["first_detected"], "last_updated": e["last_updated"], "origin": e["origin"],
+                 "verification": e["verification"], "confidence": e["extraction_confidence"], "magnitude": e["magnitude"],
+                 "revision": e["revision"], "outlets": len({r.get("publisher") for r in refs}), "why": why,
+                 "refs": [{"t": r["title"], "u": r.get("url"), "p": r.get("publisher"), "d": r.get("published_at")} for r in refs[:1]],
+                 "n_related": len(related)}
+        events.append(light)
+        timeline = []
+        if e["cluster_id"]:
+            timeline = [{"t": a["title"], "u": a["url"], "p": a["publisher"], "d": a["published_at"] or a["collected_at"], "o": bool(a["is_official"]),
+                         "dup": bool(a["duplicate_of"])}
+                        for a in conn.execute("SELECT * FROM articles WHERE cluster_id=? ORDER BY coalesce(published_at,collected_at) LIMIT 40", (e["cluster_id"],))]
+        detail = {**light, "description": e["description"],
+                  "refs": [{"t": r["title"], "u": r.get("url"), "p": r.get("publisher"), "d": r.get("published_at")} for r in refs[:15]],
+                  "timeline": timeline,
+                  "related": [{**r, "title": titles.get(r["to"])} for r in related if r["to"] in titles],
+                  "revisions": [{"revision": r["revision"], "changed_at": r["changed_at"]} for r in
+                                conn.execute("SELECT revision, changed_at FROM event_revisions WHERE event_id=? ORDER BY revision", (e["id"],))]}
+        _write(out / "events" / f"{e['id']}.json", detail)
     sizes["events.json"] = _write(out / "events.json", {"generated_at": gen, "window_days": 7, "events": events})
 
     # ---- signals (30 days)
@@ -111,14 +160,14 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
     series_meta += [(f"crypto:{c}", c.title(), "crypto", "USD", None) for c in registry.get("crypto", [])]
     markets = []
     for sid, name, kind, unit, country in series_meta:
-        pts = conn.execute("SELECT ts, value, source FROM signal_observations WHERE series=? AND ts >= ? ORDER BY ts", (sid, _since(days=190)[:10])).fetchall()
+        pts = conn.execute("SELECT ts, value, source FROM signal_observations WHERE series=? AND ts >= ? ORDER BY ts", (sid, _since(days=370)[:10])).fetchall()
         if not pts:
             markets.append({"id": sid, "name": name, "kind": kind, "unit": unit, "country": country, "points": [], "source": None})
             continue
         markets.append({"id": sid, "name": name, "kind": kind, "unit": unit, "country": country, "source": pts[-1]["source"],
                         "points": [[p["ts"], round(p["value"], 6)] for p in pts]})
     sizes["markets.json"] = _write(out / "markets.json", {"generated_at": gen, "series": markets,
-                                                          "note": "Daily closes. Delayed data from free endpoints; not exchange-grade real-time."})
+                                                          "note": "Daily closes, up to 1 year. Delayed data from free endpoints; not exchange-grade real-time."})
 
     # ---- countries
     ind = defaultdict(dict)
@@ -140,6 +189,8 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
     vol = defaultdict(list)
     for r in conn.execute("SELECT series, ts, value FROM signal_observations WHERE series LIKE 'vol:country:%' AND ts >= ? ORDER BY ts", (_since(days=31)[:10],)):
         vol[r["series"].split(":")[2]].append([r["ts"], r["value"]])
+    risk = insights.country_risk(conn)
+    risk_by = {r["iso2"]: r for r in risk["countries"]}
     clist = []
     day = _since(hours=24)
     for c in conn.execute("SELECT * FROM countries ORDER BY name"):
@@ -154,11 +205,13 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                  "gdp": gdp and {"value": gdp["value"], "period": gdp["period"]},
                  "events_24h": sum(1 for e in evs if e["last_updated"] >= day), "events_7d": len(evs),
                  "news_72h": len(news_by_c.get(iso2, [])), "signals_30d": len(sig_by_c.get(iso2, [])),
-                 "top_category": cats.most_common(1)[0][0] if cats else None}
+                 "top_category": cats.most_common(1)[0][0] if cats else None,
+                 "risk": risk_by[iso2]["level"] if iso2 in risk_by else None}
         clist.append(entry)
         profile = {"generated_at": gen, "country": entry, "meta_source": c["meta_source"], "meta_updated": c["meta_updated"],
                    "indicators": ind.get(iso2, {}), "events": evs[:80], "news": news_by_c.get(iso2, [])[:60],
-                   "signals": sig_by_c.get(iso2, [])[:30], "volume": vol.get(iso2, []),
+                   "signals": sig_by_c.get(iso2, [])[:30], "volume": vol.get(iso2, []), "risk": risk_by.get(iso2),
+                   "currency": insights.CURRENCY_OF.get(iso2),
                    "briefings": {h: country_briefing(conn, iso2, h) for h in (24, 168, 720)} if (evs or sig_by_c.get(iso2)) else {}}
         _write(out / "countries" / f"{iso2}.json", profile)
     sizes["countries.json"] = _write(out / "countries.json", {"generated_at": gen, "countries": clist})
@@ -186,6 +239,17 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
     hist["collection_days"] = [r[0] for r in conn.execute("SELECT DISTINCT substr(started_at,1,10) FROM fetch_logs WHERE status='ok' ORDER BY 1")]
     sizes["history.json"] = _write(out / "history.json", hist)
 
+    # ---- business views
+    sizes["risk.json"] = _write(out / "risk.json", risk)
+    views = {"chokepoints.json": insights.chokepoints(conn), "sanctions.json": insights.sanctions(conn), "supply.json": insights.supply_chains(conn),
+             "changes.json": insights.changes(conn, registry), "elections.json": insights.elections(conn), "official.json": insights.official(conn),
+             "corrections.json": insights.corrections(conn), "weekly.json": insights.weekly(conn, registry)}
+    for name, data in views.items():
+        sizes[name] = _write(out / name, data)
+    quality = quality_report or {"ok": True, "problems": [], "checks": []}
+    sizes["quality.json"] = _write(out / "quality.json", quality)
+    write_feed(out / "feed.xml", events, gen)
+
     # ---- meta
     ok = sum(1 for s in srcs if s["status"] == "ok")
     meta = {"generated_at": gen, "app_version": __version__, "processing_version": PROCESSING_VERSION, "mode": "static",
@@ -193,7 +257,8 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
                                                  "quakes_30d": len(qs), "countries": len(clist), "duplicates_removed_72h": dup_total},
             "sources": {"total": len(srcs), "ok": ok, "failing": sum(1 for s in srcs if s["status"] == "failing"),
                         "disabled": sum(1 for s in srcs if s["status"] == "disabled")},
-            "category_labels": LABELS, "files": sizes}
+            "category_labels": LABELS, "files": sizes, "quality_ok": quality.get("ok", True), "quality_problems": quality.get("problems", []),
+            "site_url": SITE_URL}
     _write(out / "meta.json", meta)
     export_dashboard(out, news, events, sigs, qs, markets, clist, srcs, hist, gen)
     return meta

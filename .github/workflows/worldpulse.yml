@@ -15,6 +15,7 @@ concurrency:
 
 permissions:
   contents: write
+  issues: write
 
 env:
   DATA_BRANCH: worldpulse-data   # orphan branch holding only the latest snapshot (force-pushed, no history growth)
@@ -53,6 +54,7 @@ jobs:
           FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
           WORLDPULSE_DB: ${{ github.workspace }}/data/worldpulse.sqlite
           WORLDPULSE_EXPORT: ${{ github.workspace }}/data/public
+          WORLDPULSE_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
         run: python -m worldpulse run --force
 
       - name: Publish snapshot to the data branch
@@ -74,6 +76,30 @@ jobs:
           git add -A
           git commit -q -m "WorldPulse data snapshot $(date -u +%Y-%m-%dT%H:%MZ) [skip ci]"
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$DATA_BRANCH:$DATA_BRANCH"
+
+      - name: Open a data-health issue when checks fail (free notification)
+        if: always() && github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          Q=../data/public/quality.json
+          PROBLEMS=""
+          if [ "$JOB_STATUS" != "success" ]; then PROBLEMS="The data run failed. See ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; fi
+          if [ -f "$Q" ]; then PROBLEMS="$PROBLEMS$(python3 -c "import json;q=json.load(open('$Q'));print(chr(10).join('- '+p for p in q.get('problems',[])))")"; fi
+          OPEN=$(gh issue list --repo "$GITHUB_REPOSITORY" --label data-health --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$PROBLEMS" ]; then
+            gh label create data-health --repo "$GITHUB_REPOSITORY" --color d93f0b --description "Automatic data checks" 2>/dev/null || true
+            if [ -z "$OPEN" ]; then
+              printf 'WorldPulse automatic checks found problems on %s UTC:\n\n%s\n\nThis issue closes itself when a later run passes.\n' "$(date -u +%Y-%m-%dT%H:%M)" "$PROBLEMS" > /tmp/body.md
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "Data health: automatic checks failed" --label data-health --body-file /tmp/body.md
+            else
+              printf 'Still failing on %s UTC:\n\n%s\n' "$(date -u +%Y-%m-%dT%H:%M)" "$PROBLEMS" > /tmp/body.md
+              gh issue comment "$OPEN" --repo "$GITHUB_REPOSITORY" --body-file /tmp/body.md
+            fi
+          elif [ -n "$OPEN" ]; then
+            gh issue close "$OPEN" --repo "$GITHUB_REPOSITORY" --comment "Checks passed on $(date -u +%Y-%m-%dT%H:%M) UTC."
+          fi
 
   pages:
     # Needs Settings → Pages → Source: GitHub Actions (one-time).

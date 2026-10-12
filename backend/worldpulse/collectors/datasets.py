@@ -261,3 +261,19 @@ def parse_firms_csv(content: bytes) -> list[dict]:
     rows = list(csv.DictReader(io.StringIO(content.decode("utf-8", errors="replace"))))
     return [{"lat": float(r["latitude"]), "lon": float(r["longitude"]), "date": r.get("acq_date"),
              "confidence": r.get("confidence"), "frp": r.get("frp")} for r in rows if r.get("latitude")]
+
+
+def parse_stooq_csv(content: bytes) -> list[tuple[str, float]]:
+    """Stooq daily CSV: Date,Open,High,Low,Close,Volume."""
+    text = content.decode("utf-8", errors="replace").strip()
+    if not text.lower().startswith("date"):
+        raise ValueError(f"Stooq returned no CSV: {text[:80]}")
+    out = []
+    for r in csv.DictReader(io.StringIO(text)):
+        try:
+            out.append((r["Date"][:10], float(r["Close"])))
+        except (KeyError, ValueError):
+            continue
+    if not out:
+        raise ValueError("Stooq CSV had no rows")
+    return out
