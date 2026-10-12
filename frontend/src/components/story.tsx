@@ -74,10 +74,21 @@ export function StoryFacts({ e, names, dark }: { e: Event; names: Record<string,
           <span className={`fact ${dark ? '' : tone}`} title={v?.tip}>{tone === 'ok' ? '✔' : '⚠'} {t(v?.label || e.verification)}</span>
           {e.outlets > 1 && <span className="fact">📰 {e.outlets} outlets</span>}
         </>}
-      {e.who?.slice(0, 2).map((w) => <span key={w} className="fact acc">👤 {w}</span>)}
+      {whoClean(e.who, names).slice(0, 2).map((w) => <span key={w} className="fact acc">👤 {w}</span>)}
       {e.disputed && <span className="fact warn" title="Outlets report different numbers — see Understand this">⚖ Figures differ</span>}
     </div>
   )
+}
+
+const JUNK = /\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|news|largest|fridges?|usgs|gdacs|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|county|state|ceasefire|war|crisis|deal)\b/i
+const NATIONALITY = /^(american|british|chinese|russians?|ukrainians?|israelis?|palestinians?|iranians?|indians?|pakistanis?|saudis?|french|germans?|european|arabs?|western)$/i
+/** Names of people/organisations only — no country names or nationality words. */
+function whoClean(who: string[] | undefined, names: Record<string, CountrySummary>): string[] {
+  const countries = Object.values(names).map((c) => c.name.toLowerCase())
+  return (who || []).filter((w) => {
+    const l = w.toLowerCase()
+    return !NATIONALITY.test(w) && !JUNK.test(w) && w.split(' ').length <= 4 && !countries.some((c) => c === l || (!l.includes(' ') && c.startsWith(l)))
+  })
 }
 
 export function storySummary(e: Event, lang: string): { text: string; by: string } | null {

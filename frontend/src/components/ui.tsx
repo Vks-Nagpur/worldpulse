@@ -58,7 +58,7 @@ export function ShareButton({ title, path }: { title: string; path?: string }) {
   const u = encodeURIComponent(url)
   return (
     <div style={{ position: 'relative' }} ref={ref}>
-      <button type="button" className="icon-btn" onClick={click}>↗ {t('Share')}</button>
+      <button type="button" className="icon-btn" onClick={click} aria-label={t('Share')}>↗<span className="lbl"> {t('Share')}</span></button>
       {open && (
         <div className="share-menu">
           <a href={`https://wa.me/?text=${text}%20${u}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
@@ -71,9 +71,9 @@ export function ShareButton({ title, path }: { title: string; path?: string }) {
     </div>
   )
 }
-export const PrintButton = () => <button type="button" className="icon-btn" onClick={() => window.print()}>🖨 {t('Print / PDF')}</button>
+export const PrintButton = () => <button type="button" className="icon-btn" onClick={() => window.print()} aria-label={t('Print / PDF')}>🖨<span className="lbl"> {t('Print / PDF')}</span></button>
 export function DownloadButton({ name, rows }: { name: string; rows: () => Record<string, unknown>[] }) {
-  return <button type="button" className="icon-btn" onClick={() => downloadCSV(name, rows())} title="Download as CSV (opens in Excel)">⬇ {t('Download')}</button>
+  return <button type="button" className="icon-btn" onClick={() => downloadCSV(name, rows())} title="Download as CSV (opens in Excel)" aria-label={t('Download')}>⬇<span className="lbl"> {t('Download')}</span></button>
 }
 
 // ---------------------------------------------------------------- watchlist star

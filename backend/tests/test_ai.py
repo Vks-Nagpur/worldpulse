@@ -73,5 +73,7 @@ def test_entity_filter_drops_headline_fragments():
     assert not _good_entity("Full-Scale Invasion", "organisation")
     assert not _good_entity("Hackers Heat Supermarket Fridges", "organisation")
     assert not _good_entity("Russia", "organisation")
+    assert not _good_entity("Saudi", "person")
+    assert not _good_entity("Russians", "organisation")
     assert _good_entity("Volodymyr Zelensky", "person")
     assert _good_entity("European Union", "organisation")

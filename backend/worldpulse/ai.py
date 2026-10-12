@@ -176,8 +176,14 @@ _ENT_STOP = {"reuters", "ap", "afp", "bbc", "cnn", "video", "live", "watch", "th
              "saturday", "sunday", "today", "news", "breaking"}
 
 
+DEMONYMS = set("""american americans british chinese russian russians ukrainian ukrainians israeli israelis palestinian palestinians iranian iranians
+indian indians pakistani pakistanis saudi saudis emirati french german germans italian spanish japanese korean north korean south korean turkish
+syrian lebanese yemeni iraqi afghan egyptian sudanese ethiopian somali nigerian kenyan african europeans european asian arab arabs western
+taiwanese filipino vietnamese thai indonesian malaysian australian canadian mexican brazilian argentine venezuelan cuban colombian polish
+dutch belgian swiss swedish norwegian danish finnish greek hungarian romanian serbian georgian armenian azerbaijani kazakh belarusian qatari
+jordanian kuwaiti omani bahraini libyan tunisian moroccan algerian bangladeshi sri lankan nepali burmese kurdish""".split())
 _ENT_JUNK = re.compile(r"\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|exclusive|explainer|watch|"
-                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|fridges?|ceasefire|war|crisis|deal)\b", re.I)
+                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|second|third|fourth|fifth|sixth|county|fridges?|ceasefire|war|crisis|deal)\b", re.I)
 
 
 def _good_entity(name: str, kind: str) -> bool:
@@ -189,8 +195,10 @@ def _good_entity(name: str, kind: str) -> bool:
     if kind in ("person", "organisation"):
         if _ENT_JUNK.search(name) or len(name.split()) > 4:
             return False
-        if any(low == c.name.lower() for c in COUNTRIES.values()):
+        if any(low == c.name.lower() for c in COUNTRIES.values()) or low in DEMONYMS:
             return False
+        if len(name.split()) == 1 and any(c.name.lower().startswith(low) for c in COUNTRIES.values()):
+            return False  # "Saudi", "South" … parts of country names
     return True
 
 

@@ -252,7 +252,7 @@ export function Watch() {
   return (
     <>
       <PageHead title={`⭐ ${t('Watchlist & alerts')}`} sub="Saved only in this browser — no account needed. Alerts are checked each time you open WorldPulse."
-        actions={<button type="button" className="icon-btn" onClick={resetName}>👤 {userName(user) ? `${userName(user)} · ${t('Change name')}` : t('Change name')}</button>} />
+        actions={<button type="button" className="icon-btn" onClick={resetName} aria-label={t('Change name')}>👤<span className="lbl"> {userName(user) ? `${userName(user)} · ${t('Change name')}` : t('Change name')}</span></button>} />
       <div className="banner warn"><span>🔔</span><div className="small">This free site has no server, so it cannot alert you while it is closed. Installing it as an app and enabling notifications shows alerts when you open it. For continuous alerts, run the free self-hosted engine (see About &amp; sources).</div></div>
       <div className="grid g2">
         <div className="card">
