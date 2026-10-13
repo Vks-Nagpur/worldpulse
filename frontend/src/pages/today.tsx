@@ -93,6 +93,7 @@ export function Today() {
           )}
         </section>
         <aside className="stack">
+          <a className="card me-teaser" href="#/me"><span style={{ fontSize: 28 }}>🎯</span><div><b>How does this affect me?</b><div className="small muted">Pick who you are — get a short note on prices and news that matter to you.</div></div><span className="me-go">→</span></a>
           {rows && rows.length > 0 && <Glance rows={rows} />}
           <WatchPanel events={all} />
           <ChangesCard ch={ch.data} />

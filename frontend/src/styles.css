@@ -634,3 +634,19 @@ body { background: var(--bg); }
 .map-top { width: 100%; border: 0; background: none; cursor: pointer; color: var(--text); font: inherit; padding: 6px 0; }
 .map-panel { animation: cardIn .25s var(--ease) both; }
 .map-top { display: flex; justify-content: space-between; text-align: left; }
+
+/* how does this affect me */
+.role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; margin-top: 10px; }
+.role { display: grid; gap: 3px; text-align: left; padding: 14px; border-radius: 14px; border: 1.5px solid var(--border); background: var(--panel); color: var(--text); cursor: pointer; font: inherit; transition: border-color .15s, transform .15s var(--ease); }
+.role:hover { transform: translateY(-2px); }
+.role.on { border-color: var(--accent); background: var(--accent-soft); }
+.role-i { font-size: 26px; }
+.impact-note h3 { font-size: 17px; }
+.impact-lines { display: grid; gap: 10px; margin-top: 12px; }
+.impact-line { display: flex; gap: 12px; padding: 12px; border-radius: 14px; background: var(--panel-2); border-left: 4px solid var(--border); animation: cardIn .3s var(--ease) both; }
+.impact-line.t-up, .impact-line.t-down, .impact-line.t-info { border-left-color: var(--accent); } .impact-line.t-flat { border-left-color: var(--border); }
+.il-icon { font-size: 24px; line-height: 1; flex: none; }
+.il-text { font-weight: 600; margin-bottom: 3px; } .il-text a { color: var(--text); }
+.il-story { margin-top: 6px; font-size: 14px; }
+.me-teaser { display: flex; align-items: center; gap: 12px; color: var(--text); background: linear-gradient(120deg, var(--accent-soft), var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.me-teaser .me-go { margin-left: auto; font-size: 20px; color: var(--accent); font-weight: 700; }
