@@ -54,6 +54,7 @@ const Signals = page(() => import('./pages/detail'), 'Signals')
 const SignalDetail = page(() => import('./pages/detail'), 'SignalDetail')
 const News = page(() => import('./pages/detail'), 'News')
 const Quakes = page(() => import('./pages/detail'), 'Quakes')
+const WorldMap = page(() => import('./pages/map'), 'WorldMap')
 const Policy = page(() => import('./pages/policy'), 'Policy')
 const Briefings = page(() => import('./pages/policy'), 'Briefings')
 const Ask = page(() => import('./pages/tools'), 'Ask')
@@ -96,13 +97,13 @@ function useInstall() {
   return evt ? () => { evt.prompt(); setEvt(null) } : null
 }
 
-const PRIMARY: [string, string, string][] = [['/', '🌍', 'Home'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/briefings', '📋', 'Briefings']]
+const PRIMARY: [string, string, string][] = [['/', '🌍', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/briefings', '📋', 'Briefings']]
 const EXPLORE: [string, [string, string, string][]][] = [
   ['Topics', [['/conflict', '🛡️', 'Conflict & security'], ['/trade', '🚢', 'Trade & shipping'], ['/energy', '🛢️', 'Energy'], ['/policy', '🏛️', 'Policy & elections'], ['/quakes', '🌋', 'Earthquakes']]],
   ['Analysis', [['/risk', '🚦', 'Country risk'], ['/signals', '⚡', 'Signals'], ['/news', '📰', 'All news'], ['/markets?tab=fx', '💱', 'Currency watch']]],
-  ['Tools', [['/ask', '💬', 'Ask WorldPulse'], ['/search', '🔎', 'Search'], ['/watch', '⭐', 'Watchlist & alerts'], ['/learn', '📘', 'Learn'], ['/about', '🧪', 'About & sources']]],
+  ['Tools', [['/countries', '🌐', 'Countries'], ['/ask', '💬', 'Ask WorldPulse'], ['/search', '🔎', 'Search'], ['/watch', '⭐', 'Watchlist & alerts'], ['/learn', '📘', 'Learn'], ['/about', '🧪', 'About & sources']]],
 ]
-const BOTTOM: [string, string, string][] = [['/', '🌍', 'Home'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/ask', '💬', 'Ask']]
+const BOTTOM: [string, string, string][] = [['/', '🌍', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/ask', '💬', 'Ask']]
 
 function Router({ path, query }: { path: string; query: string }) {
   const parts = path.split('/').filter(Boolean)
@@ -121,6 +122,7 @@ function Router({ path, query }: { path: string; query: string }) {
     case 'signal': return <SignalDetail id={id} key={id} />
     case 'news': return <News />
     case 'quakes': return <Quakes />
+    case 'map': return <WorldMap />
     case 'policy': return <Policy query={query} key={query} />
     case 'briefings': return <Briefings query={query} />
     case 'ask': return <Ask />
