@@ -103,6 +103,7 @@ export function Today() {
           <FollowingCard events={ev.data?.events} />
           <WatchPanel events={all} />
           <ChangesCard ch={ch.data} />
+          <ComingUpCard />
           <RoutesCard />
           <CrisesCard />
           <div className="card"><h3>{t('Where it is happening')}</h3><p className="sub">Stories per country. Tap a country to see only its news.</p><CountryBars rows={rows} /></div>
@@ -278,6 +279,18 @@ function FollowingCard({ events }: { events?: Event[] }) {
             : <span className="faint">No longer in this week’s news · <button type="button" className="link-btn" onClick={() => followStore.remove(f.id)}>remove</button></span>}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function ComingUpCard() {
+  const { data } = useData<{ items: { date: string; title: string; kind: string; country: string }[] }>('calendar.json')
+  const rows = (data?.items || []).slice(0, 4)
+  if (!rows.length) return null
+  return (
+    <div className="card">
+      <div className="card-head"><h3>📅 Coming up</h3><a href="#/calendar" className="small">{t('See all')} →</a></div>
+      {rows.map((x, i) => <a key={i} href="#/calendar" className="kv-line"><span>{x.kind === 'election' ? '🗳️' : '🏦'} {x.title}</span><span className="faint">{new Date(x.date + 'T12:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span></a>)}
     </div>
   )
 }

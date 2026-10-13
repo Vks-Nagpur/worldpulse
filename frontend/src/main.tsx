@@ -58,6 +58,7 @@ const WorldMap = page(() => import('./pages/map'), 'WorldMap')
 const Impact = page(() => import('./pages/impact'), 'Impact')
 const Products = page(() => import('./pages/products'), 'Products')
 const Crises = page(() => import('./pages/crises'), 'Crises')
+const Calendar = page(() => import('./pages/calendar'), 'Calendar')
 const CrisisPage = page(() => import('./pages/crises'), 'CrisisPage')
 const Policy = page(() => import('./pages/policy'), 'Policy')
 const Briefings = page(() => import('./pages/policy'), 'Briefings')
@@ -104,7 +105,7 @@ function useInstall() {
 const PRIMARY: [string, string, string][] = [['/', '🌍', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/briefings', '📋', 'Briefings']]
 const EXPLORE: [string, [string, string, string][]][] = [
   ['Topics', [['/explain', '🧭', 'Big conflicts, explained'], ['/conflict', '🛡️', 'Conflict & security'], ['/trade', '🚢', 'Trade & shipping'], ['/energy', '🛢️', 'Energy'], ['/products', '📦', 'Product watch'], ['/policy', '🏛️', 'Policy & elections'], ['/quakes', '🌋', 'Earthquakes']]],
-  ['For you', [['/me', '🎯', 'How does this affect me?']]],
+  ['For you', [['/me', '🎯', 'How does this affect me?'], ['/calendar', '📅', 'Coming up']]],
   ['Analysis', [['/risk', '🚦', 'Country risk'], ['/signals', '⚡', 'Signals'], ['/news', '📰', 'All news'], ['/markets?tab=fx', '💱', 'Currency watch']]],
   ['Tools', [['/countries', '🌐', 'Countries'], ['/ask', '💬', 'Ask WorldPulse'], ['/search', '🔎', 'Search'], ['/watch', '⭐', 'Watchlist & alerts'], ['/learn', '📘', 'Learn'], ['/about', '🧪', 'About & sources']]],
 ]
@@ -130,6 +131,7 @@ function Router({ path, query }: { path: string; query: string }) {
     case 'map': return <WorldMap />
     case 'me': return <Impact />
     case 'products': return <Products />
+    case 'calendar': return <Calendar />
     case 'explain': return id ? <CrisisPage id={id} key={id} /> : <Crises />
     case 'policy': return <Policy query={query} key={query} />
     case 'briefings': return <Briefings query={query} />

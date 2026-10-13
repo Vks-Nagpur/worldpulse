@@ -7,7 +7,7 @@ import time
 import traceback
 from pathlib import Path
 
-from . import ai, alerts, analyze, briefings, collect, context, export, insights
+from . import ai, alerts, analyze, briefings, calendar, collect, context, export, insights
 from .db import connect, log_error
 from .processing.normalize import now_iso
 
@@ -46,6 +46,7 @@ def run(db_path: Path = DEFAULT_DB, out: Path | None = DEFAULT_OUT, force: bool 
     _stage(conn, "alerts", lambda: alerts.evaluate(conn), log)
     bs = _stage(conn, "briefings", lambda: briefings.generate_all(conn, registry, use_ai=use_ai), log) or []
     _stage(conn, "context", lambda: context.refresh(conn, log), log)
+    _stage(conn, "calendar", lambda: calendar.refresh(conn, log), log)
     if ai.enabled():
         _stage(conn, "ai-understanding", lambda: ai.run_all(conn, log), log)
     _stage(conn, "prune", lambda: analyze.prune(conn), log)

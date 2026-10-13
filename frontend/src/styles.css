@@ -709,3 +709,11 @@ body { background: var(--bg); }
 .fr-title { color: var(--text); font-weight: 600; font-size: 14px; display: block; margin-bottom: 2px; }
 .link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
 .follow-btn.on { border-color: var(--accent); color: var(--accent); }
+
+/* calendar */
+.cal-list { padding: 6px 14px; }
+.cal-row { display: flex; gap: 14px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+.cal-row:first-child { border-top: 0; }
+.cal-date { flex: none; width: 50px; text-align: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent); padding: 6px 0; display: grid; }
+.cal-date b { font-size: 20px; font-family: "Space Grotesk", sans-serif; line-height: 1.1; } .cal-date span { font-size: 11px; text-transform: uppercase; font-weight: 700; }
+.cal-title { font-weight: 600; }
