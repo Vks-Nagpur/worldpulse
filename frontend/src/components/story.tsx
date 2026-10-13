@@ -81,7 +81,7 @@ export function StoryFacts({ e, names, dark }: { e: Event; names: Record<string,
 }
 
 const JUNK = /\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|news|largest|fridges?|usgs|gdacs|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|county|state|slips?|rises?|falls?|stocks?|shares|hormuz|strait|ceasefire|war|crisis|deal)\b/i
-const NATIONALITY = /^(american|british|chinese|russians?|ukrainians?|israelis?|palestinians?|iranians?|indians?|pakistanis?|saudis?|french|germans?|european|arabs?|western)$/i
+const NATIONALITY = /^((north|south) )?(american|british|chinese|russian|ukrainian|israeli|palestinian|iranian|indian|pakistani|saudi|french|german|european|arab|western|korean|japanese|turkish|syrian|iraqi|afghan|egyptian|african|asian|yemeni|lebanese|sudanese|taiwanese|australian|canadian|mexican|brazilian|polish|italian|spanish|dutch|swiss|qatari|emirati|houthi|kurdish)s?$/i
 /** Names of people/organisations only — no country names or nationality words. */
 function whoClean(who: string[] | undefined, names: Record<string, CountrySummary>): string[] {
   const countries = Object.values(names).map((c) => c.name.toLowerCase())

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { DotMap, LineChart, StackedBars } from '../components/charts'
-import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, VerifBadge, ReportButton } from '../components/ui'
+import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, ReportButton } from '../components/ui'
 import type { Article, EventDetail as ED, History, Signal } from '../data'
-import { TOPIC_PLAIN } from '../components/story'
+import { StoryFacts, TOPIC_PLAIN } from '../components/story'
 import { ExplainButton } from '../components/explain'
 import { useData } from '../data'
 import { t } from '../i18n'
@@ -22,8 +22,16 @@ export function EventDetail({ id }: { id: string }) {
   e.timeline.forEach((a) => { const k = a.p || 'Unknown'; byPublisher.set(k, [...(byPublisher.get(k) || []), a]) })
   return (
     <>
-      <PageHead title={e.title} sub={<span className="row"><VerifBadge v={e.verification} /><CatLabel c={e.category} /><span className="small">{VERIF[e.verification]?.tip}</span></span>}
-        actions={<><ExplainButton e={e} names={by} /><ShareButton title={e.title} path={`/event/${e.id}`} /><ReportButton title={e.title} path={`/event/${e.id}`} /></>} />
+      <header className="story-head">
+        <div className="story-head-top">
+          <CatLabel c={e.category} />
+          <span className="head-actions"><ShareButton title={e.title} path={`/event/${e.id}`} /><ReportButton title={e.title} path={`/event/${e.id}`} /></span>
+        </div>
+        <h2>{e.title}</h2>
+        <StoryFacts e={e} names={by} />
+        <p className="small muted" style={{ margin: '10px 0 14px' }}>{VERIF[e.verification]?.tip}</p>
+        <ExplainButton e={e} names={by} />
+      </header>
       <div className="grid g2">
         <div className="card"><h3>Details</h3>
           <div className="bg-panel" style={{ marginTop: 6, marginBottom: 10 }}><div className="bg-row"><span className="bg-k">💡 In simple words</span><span>{TOPIC_PLAIN[e.category] || TOPIC_PLAIN.general} {VERIF[e.verification]?.tip}</span></div></div>
