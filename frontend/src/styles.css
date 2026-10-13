@@ -675,3 +675,26 @@ body { background: var(--bg); }
 .prod-detail { margin-top: 14px; }
 @media (max-width: 600px) { .prod-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .prod { padding: 11px; } .prod svg { width: 100%; } }
 .route-tile, .route-tile:hover { text-decoration: none; }
+
+/* conflict explainers */
+.crisis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 12px; }
+.crisis-card { display: grid; gap: 6px; padding: 16px; border-radius: 18px; background: var(--panel); border: 1px solid var(--border); color: var(--text); box-shadow: var(--shadow); transition: transform .15s var(--ease); }
+.crisis-card:hover { transform: translateY(-3px); }
+.cc-top { display: flex; justify-content: space-between; align-items: center; }
+.cc-icon { font-size: 28px; } .cc-flags { font-size: 18px; }
+.cc-title { font-size: 18px; font-family: "Space Grotesk", sans-serif; }
+.cc-meta { font-size: 13px; color: var(--muted); }
+.cc-bg { font-size: 13.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cc-go { color: var(--accent); font-weight: 700; font-size: 14px; }
+.crisis-hero { border-radius: 22px; padding: clamp(18px, 3vw, 28px); color: #fff; background: linear-gradient(135deg, #7f1d1d, #312e81 60%, #0f766e); box-shadow: 0 20px 50px rgba(30, 27, 75, .25); }
+.crisis-hero h2 { font-size: clamp(26px, 4vw, 40px); margin: 6px 0 12px; font-family: "Space Grotesk", sans-serif; letter-spacing: -0.02em; }
+.crisis-hero .ch-icon { font-size: 40px; margin-top: 10px; }
+.crisis-hero .fact { background: rgba(255, 255, 255, .15); color: #fff; border-color: transparent; }
+.crisis-hero .icon-btn { background: rgba(255, 255, 255, .15); color: #fff; border-color: transparent; }
+.timeline { display: grid; gap: 0; }
+.tl-item { display: grid; grid-template-columns: 70px 1fr; gap: 4px 12px; padding: 10px 0; border-top: 1px solid var(--border); position: relative; }
+.tl-item:first-child { border-top: 0; }
+.tl-date { font-size: 12.5px; font-weight: 700; color: var(--accent); padding-top: 2px; }
+.tl-body a { color: var(--text); }
+.tl-bar { grid-column: 2; height: 4px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.tl-bar i { display: block; height: 100%; background: linear-gradient(90deg, #f97316, #ef4444); border-radius: 4px; }

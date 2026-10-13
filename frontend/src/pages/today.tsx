@@ -100,6 +100,7 @@ export function Today() {
           <WatchPanel events={all} />
           <ChangesCard ch={ch.data} />
           <RoutesCard />
+          <CrisesCard />
           <div className="card"><h3>{t('Where it is happening')}</h3><p className="sub">Stories per country. Tap a country to see only its news.</p><CountryBars rows={rows} /></div>
           <div className="card">
             <div className="card-head"><h3>⚡ Unusual activity</h3><a href="#/signals" className="small">{t('See all')} →</a></div>
@@ -204,6 +205,20 @@ function RoutesCard() {
       <div className="card-head"><h3>🚢 Shipping routes</h3><a href="#/trade?tab=routes" className="small">{t('See all')} →</a></div>
       <p className="sub">How much news names each major sea route this week (not ship traffic).</p>
       <RouteBoard routes={data.routes.filter((r) => r.stories_7d > 0).slice(0, 4).length ? data.routes.filter((r) => r.stories_7d > 0).slice(0, 4) : data.routes.slice(0, 3)} compact />
+    </div>
+  )
+}
+
+function CrisesCard() {
+  const { data } = useData<{ conflicts: { key: string; title: string; stories_7d: number }[] }>('conflicts.json')
+  if (!data) return null
+  const rows = data.conflicts.filter((c) => c.stories_7d > 0).slice(0, 5)
+  if (!rows.length) return null
+  return (
+    <div className="card">
+      <div className="card-head"><h3>🧭 Big conflicts, explained</h3><a href="#/explain" className="small">{t('See all')} →</a></div>
+      <p className="sub">How they started, key moments and who is involved — in simple words.</p>
+      {rows.map((c) => <a key={c.key} href={`#/explain/${c.key}`} className="kv-line"><span>{c.title}</span><span className="faint">{c.stories_7d} this week</span></a>)}
     </div>
   )
 }

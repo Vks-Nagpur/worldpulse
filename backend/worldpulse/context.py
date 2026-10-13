@@ -148,6 +148,9 @@ def refresh(conn: sqlite3.Connection, log=print) -> int:
             topics[q] += 1
         for c in {e["country"], *uj(e["related_countries"], [])} - {None}:
             countries[c] += 1
+    from .conflicts import wiki_phrases
+    for q in wiki_phrases():  # explainer pages always need their background
+        topics[q] += 0
     n = 0
     for q, _ in topics.most_common():
         n += bool(wiki.topic(q))

@@ -69,11 +69,18 @@ def test_validate_rejects_filler_repeats_and_off_topic():
 
 
 def test_entity_filter_drops_headline_fragments():
-    from worldpulse.ai import _good_entity
+    import sqlite3
+    from worldpulse.ai import _good_entity, load_places
+    load_places(sqlite3.connect(":memory:"))
     assert not _good_entity("Full-Scale Invasion", "organisation")
     assert not _good_entity("Hackers Heat Supermarket Fridges", "organisation")
     assert not _good_entity("Russia", "organisation")
     assert not _good_entity("Saudi", "person")
     assert not _good_entity("Russians", "organisation")
     assert _good_entity("Volodymyr Zelensky", "person")
+    assert not _good_entity("Kyiv", "person")
+    assert not _good_entity("Ukraine Volodymyr Zelenskyy", "person")
+    assert not _good_entity("Trump Surprises Zelensky", "person")
+    assert not _good_entity("Truth Social': Zelenskiy", "person")
     assert _good_entity("European Union", "organisation")
+    assert _good_entity("Trump", "person") and _good_entity("Hamas", "organisation")

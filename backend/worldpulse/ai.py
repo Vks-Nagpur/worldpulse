@@ -183,7 +183,24 @@ taiwanese filipino vietnamese thai indonesian malaysian australian canadian mexi
 dutch belgian swiss swedish norwegian danish finnish greek hungarian romanian serbian georgian armenian azerbaijani kazakh belarusian qatari
 jordanian kuwaiti omani bahraini libyan tunisian moroccan algerian bangladeshi sri lankan nepali burmese kurdish""".split())
 _ENT_JUNK = re.compile(r"\b(invasion|expansion|attack|cyberattack|hackers?|heat|coastal|district|update|breaking|exclusive|explainer|watch|"
-                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|second|third|fourth|fifth|sixth|county|slips?|rises?|falls?|stocks?|shares|fridges?|ceasefire|war|crisis|deal)\b", re.I)
+                       r"live|video|photos?|says|report|reports|news|largest|biggest|new|latest|first|second|third|fourth|fifth|sixth|county|slips?|rises?|falls?|stocks?|shares|strikes?|missiles?|devastating|nifty|sensex|systems?|fridges?|ceasefire|war|crisis|deal)\b", re.I)
+
+
+_ORG_WORD = re.compile(r"\b(ministry|army|forces|council|union|nations|guards?|party|bank|agency|court|government|parliament|navy|air force|"
+                      r"police|corps|league|committee|organi[sz]ation|front|movement|group|company|corporation|airlines?|university|institute)\b", re.I)
+_PLACES: set[str] = set()
+
+
+def load_places(conn: sqlite3.Connection) -> None:
+    """Country names and capitals, so place names mistaken for people can be dropped."""
+    from .gazetteer import COUNTRIES
+    _PLACES.update(c.name.lower() for c in COUNTRIES.values())
+    try:
+        _PLACES.update((r[0] or "").lower() for r in conn.execute("SELECT capital FROM countries WHERE capital IS NOT NULL"))
+    except sqlite3.OperationalError:
+        pass
+    _PLACES.update({"kyiv", "kiev", "kharkiv", "odesa", "zaporizhzhia", "donetsk", "luhansk", "crimea", "gaza", "rafah", "khan younis", "west bank",
+                    "beirut", "tehran", "jerusalem", "tel aviv", "riyadh", "sanaa", "aden", "taipei", "pyongyang", "khartoum", "darfur", "goma"})
 
 
 def _good_entity(name: str, kind: str) -> bool:
@@ -193,17 +210,22 @@ def _good_entity(name: str, kind: str) -> bool:
     if not 2 < len(name) < 50 or low in _ENT_STOP or not re.search(r"[A-Za-z]", name):
         return False
     if kind in ("person", "organisation"):
-        if _ENT_JUNK.search(name) or len(name.split()) > 4:
+        if _ENT_JUNK.search(name) or len(name.split()) > 4 or re.search(r"[:;!?\"“”‘’()]|'\s|\s'", name):
             return False
-        if any(low == c.name.lower() for c in COUNTRIES.values()) or low in DEMONYMS:
-            return False
-        if len(name.split()) == 1 and any(c.name.lower().startswith(low) for c in COUNTRIES.values()):
-            return False  # "Saudi", "South" … parts of country names
+        words = name.split()
+        if len(words) == 1 and (low in _PLACES or low.rstrip("s") in DEMONYMS):
+            return False  # a capital, city or nationality word ("Kyiv", "Saudi")
+        first = words[0].lower()
+        if len(words) >= 2 and (first in _PLACES or first in DEMONYMS) and not _ORG_WORD.search(name):
+            return False  # headline fragment such as "Ukraine Volodymyr Zelenskyy"
+        if len(words) >= 3 and kind == "person" and all(w[0].isupper() for w in words) and re.search(r"(s|ed)$", words[1]):
+            return False  # "Trump Surprises Zelensky"
     return True
 
 
 def extract_entities(conn: sqlite3.Connection, log=print, nlp=None) -> int:
     ensure_tables(conn)
+    load_places(conn)
     if nlp is None:
         import spacy  # optional dependency
         nlp = spacy.load("en_core_web_sm", disable=["lemmatizer"])
