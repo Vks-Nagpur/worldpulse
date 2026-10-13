@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { StoryCard, topPicks, TopSlider } from '../components/story'
 import { CountryBars, Empty, ErrorBox, FilterBar, Loading, PageHead, ShareButton, SignalItem, Tiles, useCountries, VerifBadge } from '../components/ui'
 import { greeting, userName, useUser } from '../components/welcome'
+import type { Route } from '../routes'
+import { RouteBoard } from '../components/routeboard'
 import type { Changes, CountrySummary, Event, MarketLatest, Meta, Signal } from '../data'
 import { useData } from '../data'
 import { t } from '../i18n'
@@ -97,6 +99,7 @@ export function Today() {
           {rows && rows.length > 0 && <Glance rows={rows} />}
           <WatchPanel events={all} />
           <ChangesCard ch={ch.data} />
+          <RoutesCard />
           <div className="card"><h3>{t('Where it is happening')}</h3><p className="sub">Stories per country. Tap a country to see only its news.</p><CountryBars rows={rows} /></div>
           <div className="card">
             <div className="card-head"><h3>⚡ Unusual activity</h3><a href="#/signals" className="small">{t('See all')} →</a></div>
@@ -189,6 +192,18 @@ function Glance({ rows }: { rows: Event[] }) {
         <div><b>{countries}</b><span>countries</span></div>
         <div><b>{confirmed}</b><span>confirmed by 2+ sources or official</span></div>
       </div>
+    </div>
+  )
+}
+
+function RoutesCard() {
+  const { data } = useData<{ routes: Route[] }>('chokepoints.json')
+  if (!data) return null
+  return (
+    <div className="card">
+      <div className="card-head"><h3>🚢 Shipping routes</h3><a href="#/trade?tab=routes" className="small">{t('See all')} →</a></div>
+      <p className="sub">How much news names each major sea route this week (not ship traffic).</p>
+      <RouteBoard routes={data.routes.filter((r) => r.stories_7d > 0).slice(0, 4).length ? data.routes.filter((r) => r.stories_7d > 0).slice(0, 4) : data.routes.slice(0, 3)} compact />
     </div>
   )
 }

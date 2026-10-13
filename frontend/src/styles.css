@@ -650,3 +650,28 @@ body { background: var(--bg); }
 .il-story { margin-top: 6px; font-size: 14px; }
 .me-teaser { display: flex; align-items: center; gap: 12px; color: var(--text); background: linear-gradient(120deg, var(--accent-soft), var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border)); }
 .me-teaser .me-go { margin-left: auto; font-size: 20px; color: var(--accent); font-weight: 700; }
+
+/* shipping route status board */
+.route-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 8px; margin-bottom: 14px; }
+.route-tile { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); color: var(--text); box-shadow: var(--shadow); transition: transform .15s var(--ease); }
+.route-tile:hover { transform: translateY(-2px); }
+.rt-dot { width: 10px; height: 10px; border-radius: 50%; grid-row: span 2; }
+.rs-quiet .rt-dot { background: #22c55e; } .rs-active .rt-dot { background: #f59e0b; } .rs-very .rt-dot { background: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, .2); animation: pulse 1.8s infinite; }
+.rt-name { font-weight: 700; font-size: 14px; }
+.rt-meta { font-size: 12px; color: var(--muted); }
+.route-board.compact { grid-template-columns: 1fr; gap: 6px; margin: 8px 0 0; }
+.route-board.compact .route-tile { box-shadow: none; background: var(--panel-2); padding: 8px 10px; }
+.route-pt circle { stroke: #fff; stroke-width: 1.2; cursor: pointer; }
+.route-pt.rs-quiet circle { fill: #22c55e; } .route-pt.rs-active circle { fill: #f59e0b; } .route-pt.rs-very circle { fill: #ef4444; }
+.route-pt text { fill: var(--text); font-weight: 700; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; pointer-events: none; }
+
+/* product watch */
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.prod { display: grid; gap: 4px; text-align: left; padding: 14px; border-radius: 16px; border: 1.5px solid var(--border); background: var(--panel); color: var(--text); font: inherit; cursor: pointer; box-shadow: var(--shadow); transition: transform .15s var(--ease), border-color .15s; }
+.prod:hover { transform: translateY(-2px); }
+.prod.on { border-color: var(--accent); background: linear-gradient(160deg, var(--accent-soft), var(--panel)); }
+.prod-i { font-size: 26px; }
+.prod-p { font-size: 14px; font-weight: 600; }
+.prod-detail { margin-top: 14px; }
+@media (max-width: 600px) { .prod-grid { grid-template-columns: 1fr 1fr; gap: 8px; } .prod { padding: 11px; } .prod svg { width: 100%; } }
+.route-tile, .route-tile:hover { text-decoration: none; }

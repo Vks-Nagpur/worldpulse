@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { routeStatus, type Route } from '../routes'
+import { RouteBoard } from '../components/routeboard'
 import { LineChart, Sparkline } from '../components/charts'
 import { Chips, CountryBars, DownloadButton, Empty, ErrorBox, EventList, FilterBar, LearnLinks, Loading, PageHead, ShareButton, useCountries } from '../components/ui'
 import type { Event, History, Item } from '../data'
@@ -21,7 +23,7 @@ function ItemRow({ a, extra }: { a: Item; extra?: React.ReactNode }) {
 }
 
 type Sanctions = { note: string; items: (Item & { kind: string })[] }
-type Routes = { note: string; routes: { name: string; articles_7d: number; stories_7d: number; daily: [string, number][]; top_topics: string[]; latest: Item[] }[] }
+type Routes = { note: string; routes: Route[] }
 type Supply = { note: string; chains: { name: string; stories_7d: number; countries: [string, number][]; latest: Item[] }[] }
 
 export function Trade({ query }: { query: string }) {
@@ -78,11 +80,12 @@ function RoutesTab() {
   if (!data) return <Loading />
   return (
     <>
+      <RouteBoard routes={data.routes} />
       <div className="banner info"><span>⚓</span><div className="small">{data.note}</div></div>
       <div className="grid g2">
         {data.routes.map((r) => (
-          <div key={r.name} className="card">
-            <div className="card-head"><h3>{r.name}</h3><Sparkline values={r.daily.map((d) => d[1])} color="var(--c8)" width={110} height={30} /></div>
+          <div key={r.name} className="card scroll-anchor" id={`route-${r.name.replace(/\W+/g, '-')}`}>
+            <div className="card-head"><h3>{r.name} <Badge tone={routeStatus(r).tone}>{routeStatus(r).label}</Badge></h3><Sparkline values={r.daily.map((d) => d[1])} color="var(--c8)" width={110} height={30} /></div>
             <div className="row small muted" style={{ margin: '4px 0 8px' }}><b style={{ color: 'var(--text)' }}>{r.stories_7d}</b> stories · {r.articles_7d} headlines in 7 days{r.top_topics.length ? ` · ${r.top_topics.join(', ')}` : ''}</div>
             {r.latest.length ? <div className="list">{r.latest.slice(0, 4).map((a, i) => <ItemRow key={i} a={a} />)}</div> : <Empty>No headlines naming this route in 7 days.</Empty>}
             <LearnLinks text={r.name} />

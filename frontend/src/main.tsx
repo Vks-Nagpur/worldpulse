@@ -56,6 +56,7 @@ const News = page(() => import('./pages/detail'), 'News')
 const Quakes = page(() => import('./pages/detail'), 'Quakes')
 const WorldMap = page(() => import('./pages/map'), 'WorldMap')
 const Impact = page(() => import('./pages/impact'), 'Impact')
+const Products = page(() => import('./pages/products'), 'Products')
 const Policy = page(() => import('./pages/policy'), 'Policy')
 const Briefings = page(() => import('./pages/policy'), 'Briefings')
 const Ask = page(() => import('./pages/tools'), 'Ask')
@@ -100,7 +101,7 @@ function useInstall() {
 
 const PRIMARY: [string, string, string][] = [['/', '🌍', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/briefings', '📋', 'Briefings']]
 const EXPLORE: [string, [string, string, string][]][] = [
-  ['Topics', [['/conflict', '🛡️', 'Conflict & security'], ['/trade', '🚢', 'Trade & shipping'], ['/energy', '🛢️', 'Energy'], ['/policy', '🏛️', 'Policy & elections'], ['/quakes', '🌋', 'Earthquakes']]],
+  ['Topics', [['/conflict', '🛡️', 'Conflict & security'], ['/trade', '🚢', 'Trade & shipping'], ['/energy', '🛢️', 'Energy'], ['/products', '📦', 'Product watch'], ['/policy', '🏛️', 'Policy & elections'], ['/quakes', '🌋', 'Earthquakes']]],
   ['For you', [['/me', '🎯', 'How does this affect me?']]],
   ['Analysis', [['/risk', '🚦', 'Country risk'], ['/signals', '⚡', 'Signals'], ['/news', '📰', 'All news'], ['/markets?tab=fx', '💱', 'Currency watch']]],
   ['Tools', [['/countries', '🌐', 'Countries'], ['/ask', '💬', 'Ask WorldPulse'], ['/search', '🔎', 'Search'], ['/watch', '⭐', 'Watchlist & alerts'], ['/learn', '📘', 'Learn'], ['/about', '🧪', 'About & sources']]],
@@ -126,6 +127,7 @@ function Router({ path, query }: { path: string; query: string }) {
     case 'quakes': return <Quakes />
     case 'map': return <WorldMap />
     case 'me': return <Impact />
+    case 'products': return <Products />
     case 'policy': return <Policy query={query} key={query} />
     case 'briefings': return <Briefings query={query} />
     case 'ask': return <Ask />

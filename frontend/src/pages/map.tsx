@@ -10,13 +10,15 @@ import type { Event } from '../data'
 import { useData } from '../data'
 import { t } from '../i18n'
 import { NAME2ISO, NUM2ISO } from '../isoNumeric'
+import { ROUTE_POINTS, routeStatus, type Route } from '../routes'
 import { Badge, byImportance, flag, frontWorthy, RISK } from '../util'
 
-type Layer = 'news' | 'conflict' | 'risk' | 'disasters'
+type Layer = 'news' | 'conflict' | 'risk' | 'disasters' | 'routes'
 const LAYERS: { v: Layer; label: string; help: string }[] = [
   { v: 'news', label: '📰 News', help: 'How many confirmed stories mention each country this week.' },
   { v: 'conflict', label: '⚔️ Conflict', help: 'Stories about wars, attacks and security this week.' },
   { v: 'risk', label: '🚦 Risk', help: 'WorldPulse risk level from conflict, sanctions, disasters and unusual signals.' },
+  { v: 'routes', label: '🚢 Shipping routes', help: 'Major sea routes, coloured by how much news names them this week (news level, not ship traffic). Tap one for its stories.' },
   { v: 'disasters', label: '🌋 Disasters', help: 'Earthquakes of magnitude 4.5+ in the last 7 days (dots sized by strength) and disaster alerts.' },
 ]
 const W = 960, H = 500
@@ -44,6 +46,7 @@ export function WorldMap() {
   const { by } = useCountries()
   const [layer, setLayer] = useState<Layer>('news')
   const [sel, setSel] = useState<string | null>(null)
+  const rt = useData<{ routes: Route[] }>(layer === 'routes' ? 'chokepoints.json' : null)
   const [view, setView] = useState({ k: 1, x: 0, y: 0 })
   const svgRef = useRef<SVGSVGElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -68,7 +71,7 @@ export function WorldMap() {
   const value = (iso: string) => layer === 'news' ? counts.news[iso] || 0 : layer === 'conflict' ? counts.conflict[iso] || 0 : layer === 'risk' ? riskBy[iso] ?? -1 : 0
   const max = layer === 'news' ? Math.max(0, ...Object.values(counts.news)) : layer === 'conflict' ? Math.max(0, ...Object.values(counts.conflict)) : 3
   const cls = (iso: string) => {
-    if (layer === 'disasters') return 'm0'
+    if (layer === 'disasters' || layer === 'routes') return 'm0'
     if (layer === 'risk') { const l = riskBy[iso]; return l == null ? 'm0' : `r${l}` }
     return `m${bucket(value(iso), max)}`
   }
@@ -134,7 +137,7 @@ export function WorldMap() {
                 {SHAPES.map((s, i) => (
                   <path key={s.iso + i} d={s.d} className={`land ${cls(s.iso)} ${sel === s.iso ? 'sel' : ''}`} style={{ strokeWidth: 0.6 / view.k }}
                     onClick={() => pick(s.iso)}>
-                    <title>{`${by[s.iso]?.name || s.name}${layer === 'risk' ? (riskBy[s.iso] != null ? ` — ${RISK[riskBy[s.iso]]?.label}` : '') : layer !== 'disasters' ? ` — ${value(s.iso)} stories` : ''}`}</title>
+                    <title>{`${by[s.iso]?.name || s.name}${layer === 'risk' ? (riskBy[s.iso] != null ? ` — ${RISK[riskBy[s.iso]]?.label}` : '') : !['disasters', 'routes'].includes(layer) ? ` — ${value(s.iso)} stories` : ''}`}</title>
                   </path>
                 ))}
                 {layer === 'disasters' && quakes.map((q) => q.xy && (
@@ -142,6 +145,18 @@ export function WorldMap() {
                     <title>{`M${q.mag.toFixed(1)} — ${q.place}`}</title>
                   </circle>
                 ))}
+                {layer === 'routes' && (rt.data?.routes || []).map((r) => {
+                  const pt = ROUTE_POINTS[r.name] && projection(ROUTE_POINTS[r.name])
+                  if (!pt) return null
+                  const st = routeStatus(r)
+                  return (
+                    <a key={r.name} href="#/trade?tab=routes" className={`route-pt rs-${st.key}`}>
+                      <circle cx={pt[0]} cy={pt[1]} r={(5 + Math.min(10, Math.sqrt(r.stories_7d) * 1.3)) / Math.sqrt(view.k)} />
+                      <text x={pt[0] + 9 / view.k} y={pt[1] + 3 / view.k} style={{ fontSize: 11 / view.k }}>{r.name.replace('Red Sea & ', '')}</text>
+                      <title>{`${r.name}: ${st.label} — ${r.stories_7d} stories this week`}</title>
+                    </a>
+                  )
+                })}
                 {layer === 'disasters' && alerts.map(({ e, xy }) => xy && (
                   <a key={e.id} href={`#/event/${encodeURIComponent(e.id)}`}><rect x={xy[0] - 4 / view.k} y={xy[1] - 4 / view.k} width={8 / view.k} height={8 / view.k} className="alert-pt"><title>{e.title}</title></rect></a>
                 ))}
@@ -157,6 +172,8 @@ export function WorldMap() {
             <span className="small muted">{L.help}</span>
             {layer === 'risk' ? (
               <span className="legend-row">{[0, 1, 2, 3].map((l) => <span key={l}><i className={`sw r${l}`} />{RISK[l]?.label}</span>)}</span>
+            ) : layer === 'routes' ? (
+              <span className="legend-row"><span><i className="sw dot" style={{ background: '#22c55e' }} />Quiet</span><span><i className="sw dot" style={{ background: '#f59e0b' }} />In the news</span><span><i className="sw dot" style={{ background: '#ef4444' }} />Very busy</span></span>
             ) : layer === 'disasters' ? (
               <span className="legend-row"><span><i className="sw dot" />Earthquake</span><span><i className="sw sq" />Disaster alert</span></span>
             ) : (

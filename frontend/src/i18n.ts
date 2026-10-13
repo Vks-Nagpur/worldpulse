@@ -6,7 +6,7 @@ const HI: Record<string, string> = {
   'Trade & shipping': 'व्यापार और शिपिंग', 'Conflict & security': 'संघर्ष और सुरक्षा', 'Country risk': 'देश जोखिम', 'Countries': 'देश',
   'Signals': 'संकेत', 'Policy & elections': 'नीति और चुनाव', 'Briefings': 'ब्रीफ़िंग', 'Weekly review': 'साप्ताहिक समीक्षा', 'All news': 'सभी समाचार',
   'Ask': 'पूछें', 'Ask WorldPulse': 'WorldPulse से पूछें', 'Search': 'खोज', 'Watchlist & alerts': 'वॉचलिस्ट और अलर्ट', 'Learn': 'समझें', 'Earthquakes': 'भूकंप',
-  'About & sources': 'स्रोत और जानकारी', 'Compare prices': 'कीमतों की तुलना', 'Currency watch': 'मुद्रा निगरानी', 'More filters': 'और फ़िल्टर', 'At a glance': 'एक नज़र में',
+  'About & sources': 'स्रोत और जानकारी', 'Compare prices': 'कीमतों की तुलना', 'Currency watch': 'मुद्रा निगरानी', 'Product watch': 'उत्पाद निगरानी', 'More filters': 'और फ़िल्टर', 'At a glance': 'एक नज़र में',
   'Search countries, events, headlines…': 'देश, घटनाएँ, सुर्खियाँ खोजें…', 'Dark': 'डार्क', 'Light': 'लाइट',
   'What changed since yesterday': 'कल से क्या बदला', 'Key developments': 'मुख्य घटनाएँ', 'Risk signals': 'जोखिम संकेत', 'My watchlist': 'मेरी वॉचलिस्ट',
   'Where it is happening': 'कहाँ हो रहा है', 'See all': 'सभी देखें', 'Show more': 'और दिखाएँ', 'Share': 'साझा करें', 'Download': 'डाउनलोड',
