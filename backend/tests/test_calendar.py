@@ -21,6 +21,7 @@ def test_boe_dates():
 
 
 def test_elections():
-    page = "<h2>November</h2><ul><li>8 November – Brazil, municipal second round</li><li>15 November: Chile, presidential election</li></ul>"
+    page = "<h2>November</h2><ul><li>8 November – Brazil, municipal second round</li><li>15 November: Chile, presidential election [ 12 ]</li></ul>"
     out = parse_elections(page, 2026)
     assert ("2026-11-15", "CL") in [(x["date"], x["country"]) for x in out]
+    assert all("[" not in x["title"] for x in out)

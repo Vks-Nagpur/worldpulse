@@ -93,7 +93,7 @@ def parse_elections(page: str, year: int) -> list[dict]:
             continue
         if not month:
             continue
-        line = _text(tok.group(2))
+        line = re.sub(r"\[\s*[\w\s]{1,12}\s*\]", "", _text(tok.group(2))).strip()  # drop footnote marks like [ 64 ]
         m = re.match(r"(\d{1,2})(?:\s*[–-]\s*\d{1,2})?\s+([A-Z][a-z]+)?\s*[:–-]?\s*(.+)", line)
         if not m or len(line) > 220:
             continue
@@ -108,7 +108,8 @@ def parse_elections(page: str, year: int) -> list[dict]:
             d = date(year, mon, day)
         except ValueError:
             continue
-        out.append({"date": d.isoformat(), "title": f"{place}: {kind.group(0).strip() if kind else 'election'}", "kind": "election", "country": iso,
+        what = re.sub(r"\s+", " ", kind.group(0)).strip(" ,;") if kind else "national election"
+        out.append({"date": d.isoformat(), "title": f"{place}: {what}", "kind": "election", "country": iso,
                     "source": "Wikipedia — national electoral calendar", "url": WIKI.format(year=year).replace("/api/rest_v1/page/html/", "/wiki/"), "note": ""})
     return out
 
