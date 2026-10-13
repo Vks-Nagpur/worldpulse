@@ -698,3 +698,14 @@ body { background: var(--bg); }
 .tl-body a { color: var(--text); }
 .tl-bar { grid-column: 2; height: 4px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
 .tl-bar i { display: block; height: 100%; background: linear-gradient(90deg, #f97316, #ef4444); border-radius: 4px; }
+
+/* catch me up & follow */
+.catchup-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 14px; border-radius: 16px; background: linear-gradient(110deg, #fef3c7, #e0e7ff); color: #1e1b4b; font-weight: 600; animation: cardIn .3s var(--ease) both; }
+:root[data-theme="dark"] .catchup-bar { background: linear-gradient(110deg, #422006, #1e1b4b); color: #fde68a; }
+.catchup-bar .btn { margin-left: auto; }
+.catchup .stack { gap: 10px; }
+.follow-row { padding: 8px 0; border-top: 1px solid var(--border); }
+.follow-row:first-of-type { border-top: 0; }
+.fr-title { color: var(--text); font-weight: 600; font-size: 14px; display: block; margin-bottom: 2px; }
+.link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font: inherit; text-decoration: underline; }
+.follow-btn.on { border-color: var(--accent); color: var(--accent); }

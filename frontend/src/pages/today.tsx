@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { changesFor, followStore } from '../follow'
 import { StoryCard, topPicks, TopSlider } from '../components/story'
 import { CountryBars, Empty, ErrorBox, FilterBar, Loading, PageHead, ShareButton, SignalItem, Tiles, useCountries, VerifBadge } from '../components/ui'
 import { greeting, userName, useUser } from '../components/welcome'
@@ -76,6 +78,7 @@ export function Today() {
         sub={<>Here is what’s going on in the world{meta.data ? <> · {t('Updated')} {ago(meta.data.generated_at)}</> : ''}{newCount > 0 && <> · <b className="new-count">{newCount} new since your last visit</b></>}</>}
         actions={<ShareButton title="WorldPulse — what's going on in the world" path="/" />} />
 
+      {all && <CatchUp events={all} names={by} />}
       <FilterBar events={ev.data?.events || fr.data?.events} />
 
       <div className="today-grid">
@@ -97,6 +100,7 @@ export function Today() {
         <aside className="stack">
           <a className="card me-teaser" href="#/me"><span style={{ fontSize: 28 }}>🎯</span><div><b>How does this affect me?</b><div className="small muted">Pick who you are — get a short note on prices and news that matter to you.</div></div><span className="me-go">→</span></a>
           {rows && rows.length > 0 && <Glance rows={rows} />}
+          <FollowingCard events={ev.data?.events} />
           <WatchPanel events={all} />
           <ChangesCard ch={ch.data} />
           <RoutesCard />
@@ -219,6 +223,61 @@ function CrisesCard() {
       <div className="card-head"><h3>🧭 Big conflicts, explained</h3><a href="#/explain" className="small">{t('See all')} →</a></div>
       <p className="sub">How they started, key moments and who is involved — in simple words.</p>
       {rows.map((c) => <a key={c.key} href={`#/explain/${c.key}`} className="kv-line"><span>{c.title}</span><span className="faint">{c.stories_7d} this week</span></a>)}
+    </div>
+  )
+}
+
+/** "Welcome back": after a day or more away, the biggest stories since the last visit in one list. */
+function CatchUp({ events, names }: { events: Event[]; names: Record<string, CountrySummary> }) {
+  const [open, setOpen] = useState(false)
+  const [hidden, setHidden] = useState(false)
+  const away = prevVisit ? Date.now() - prevVisit : 0
+  const rows = useMemo(() => byImportance(events.filter((e) => frontWorthy(e) && isNew(e))).slice(0, 10), [events])
+  useEffect(() => {
+    if (!open) return
+    document.body.style.overflow = 'hidden'
+    const esc = (ev: KeyboardEvent) => ev.key === 'Escape' && setOpen(false)
+    addEventListener('keydown', esc)
+    return () => { document.body.style.overflow = ''; removeEventListener('keydown', esc) }
+  }, [open])
+  if (hidden || away < 20 * 3.6e6 || rows.length < 3) return null
+  const days = Math.round(away / 864e5)
+  return (
+    <>
+      <div className="catchup-bar">
+        <span>👋 Welcome back — you were away {days >= 1 ? `${days} day${days === 1 ? '' : 's'}` : 'since yesterday'}.</span>
+        <button type="button" className="btn" onClick={() => setOpen(true)}>Catch me up ({rows.length})</button>
+        <button type="button" className="icon-btn" aria-label="Hide" onClick={() => setHidden(true)}>✕</button>
+      </div>
+      {open && createPortal(<>
+        <div className="sheet-bg" onClick={() => setOpen(false)} />
+        <div className="explain catchup" role="dialog" aria-modal="true" aria-label="Catch me up">
+          <div className="sheet-grip" />
+          <div className="explain-head"><div className="explain-badge">⚡</div><div><div className="small muted">While you were away</div><b className="explain-title">The {rows.length} biggest stories since your last visit</b></div>
+            <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close">✕</button></div>
+          <div className="explain-body"><div className="stack">{rows.map((e) => <StoryCard key={e.id} e={e} names={names} />)}</div></div>
+        </div>
+      </>, document.body)}
+    </>
+  )
+}
+
+function FollowingCard({ events }: { events?: Event[] }) {
+  const list = followStore.use()
+  if (!list.length) return null
+  const byId = new Map((events || []).map((e) => [e.id, e]))
+  const rows = list.map((f) => ({ f, e: byId.get(f.id), ch: changesFor(f, byId.get(f.id)) })).sort((a, b) => b.ch.length - a.ch.length)
+  const updated = rows.filter((r) => r.ch.length).length
+  return (
+    <div className="card">
+      <div className="card-head"><h3>🔔 Stories you follow</h3>{updated > 0 && <span className="new-dot">{updated} updated</span>}</div>
+      {rows.slice(0, 6).map(({ f, e, ch }) => (
+        <div key={f.id} className="follow-row">
+          <a href={`#/event/${encodeURIComponent(f.id)}`} className="fr-title">{f.title}</a>
+          <div className="small">{ch.length ? <b className="new-count">● {ch.join(' · ')}</b> : e ? <span className="faint">No change since you looked</span>
+            : <span className="faint">No longer in this week’s news · <button type="button" className="link-btn" onClick={() => followStore.remove(f.id)}>remove</button></span>}</div>
+        </div>
+      ))}
     </div>
   )
 }

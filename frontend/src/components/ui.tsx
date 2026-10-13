@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { followStore } from '../follow'
 import type { Briefing, CountrySummary, Event, MarketLatest, Signal } from '../data'
 import { useData } from '../data'
 import { t } from '../i18n'
@@ -306,4 +307,13 @@ export function ReportButton({ title, path }: { title: string; path: string }) {
   const link = `${location.origin}${location.pathname}#${path}`
   const href = `https://github.com/Vks-Nagpur/worldpulse/issues/new?template=wrong_item.yml&title=${encodeURIComponent('Wrong item: ' + title.slice(0, 90))}&link=${encodeURIComponent(link)}`
   return <a className="icon-btn" href={href} target="_blank" rel="noopener noreferrer" title="Report a mistake" aria-label="Report a mistake">🚩<span className="lbl"> Report a mistake</span></a>
+}
+
+/** Follow a story: saved on this device; the front page shows when it gets updates. */
+export function FollowButton({ e }: { e: Event }) {
+  const list = followStore.use()
+  const on = list.some((f) => f.id === e.id)
+  useEffect(() => { if (on) followStore.markSeen(e) }, [e.id, on])
+  return <button type="button" className={`icon-btn follow-btn ${on ? 'on' : ''}`} onClick={() => { followStore.toggle(e); toast(on ? 'Stopped following' : 'Following — updates will show on the front page') }}
+    aria-pressed={on} aria-label={on ? 'Following' : 'Follow this story'}>{on ? '🔔' : '🔕'}<span className="lbl"> {on ? 'Following' : 'Follow'}</span></button>
 }

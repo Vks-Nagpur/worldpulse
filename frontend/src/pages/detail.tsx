@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { DotMap, LineChart, StackedBars } from '../components/charts'
-import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, ReportButton } from '../components/ui'
+import { CatLabel, Chips, DownloadButton, Empty, ErrorBox, FilterBar, LearnLinks, Loading, measure, PageHead, ShareButton, SignalItem, sigIcon, Stat, useCountries, ReportButton, FollowButton } from '../components/ui'
 import type { Article, EventDetail as ED, History, Signal } from '../data'
 import { StoryFacts, TOPIC_PLAIN } from '../components/story'
 import { ExplainButton } from '../components/explain'
@@ -25,7 +25,7 @@ export function EventDetail({ id }: { id: string }) {
       <header className="story-head">
         <div className="story-head-top">
           <CatLabel c={e.category} />
-          <span className="head-actions"><ShareButton title={e.title} path={`/event/${e.id}`} /><ReportButton title={e.title} path={`/event/${e.id}`} /></span>
+          <span className="head-actions"><FollowButton e={e} /><ShareButton title={e.title} path={`/event/${e.id}`} /><ReportButton title={e.title} path={`/event/${e.id}`} /></span>
         </div>
         <h2>{e.title}</h2>
         <StoryFacts e={e} names={by} />
