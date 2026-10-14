@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { changesFor, followStore } from '../follow'
+import { StressStrip, type Stress } from '../components/stress'
 import { StoryCard, topPicks, TopSlider } from '../components/story'
 import { CountryBars, Empty, ErrorBox, FilterBar, Loading, PageHead, ShareButton, SignalItem, Tiles, useCountries, VerifBadge } from '../components/ui'
 import { greeting, userName, useUser } from '../components/welcome'
@@ -44,6 +45,7 @@ export function Today() {
   useEffect(() => { if (!isDefault) setWantFull(true); else { const id = setTimeout(() => setWantFull(true), 1200); return () => clearTimeout(id) } }, [isDefault])
   const ev = useData<{ events: Event[] }>(wantFull || fr.error ? 'events.json' : null)
   const sg = useData<{ signals: Signal[] }>('signals.json')
+  const stress = useData<Stress>('stress.json')
   const user = useUser()
   const { by, regionOf } = useCountries()
   const [n, setN] = useState(12)
@@ -78,6 +80,7 @@ export function Today() {
         sub={<>Here is what’s going on in the world{meta.data ? <> · {t('Updated')} {ago(meta.data.generated_at)}</> : ''}{newCount > 0 && <> · <b className="new-count">{newCount} new since your last visit</b></>}</>}
         actions={<ShareButton title="WorldPulse — what's going on in the world" path="/" />} />
 
+      {stress.data?.available && <StressStrip s={stress.data} />}
       {all && <CatchUp events={all} names={by} />}
       <FilterBar events={ev.data?.events || fr.data?.events} />
 

@@ -59,6 +59,7 @@ const Impact = page(() => import('./pages/impact'), 'Impact')
 const Products = page(() => import('./pages/products'), 'Products')
 const Crises = page(() => import('./pages/crises'), 'Crises')
 const Calendar = page(() => import('./pages/calendar'), 'Calendar')
+const StressPage = page(() => import('./pages/stress'), 'StressPage')
 const CrisisPage = page(() => import('./pages/crises'), 'CrisisPage')
 const Policy = page(() => import('./pages/policy'), 'Policy')
 const Briefings = page(() => import('./pages/policy'), 'Briefings')
@@ -102,14 +103,23 @@ function useInstall() {
   return evt ? () => { evt.prompt(); setEvt(null) } : null
 }
 
-const PRIMARY: [string, string, string][] = [['/', '🌍', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/countries', '🌐', 'Countries'], ['/briefings', '📋', 'Briefings']]
-const EXPLORE: [string, [string, string, string][]][] = [
-  ['Topics', [['/explain', '🧭', 'Big conflicts, explained'], ['/conflict', '🛡️', 'Conflict & security'], ['/trade', '🚢', 'Trade & shipping'], ['/energy', '🛢️', 'Energy'], ['/products', '📦', 'Product watch'], ['/policy', '🏛️', 'Policy & elections'], ['/quakes', '🌋', 'Earthquakes']]],
-  ['For you', [['/me', '🎯', 'How does this affect me?'], ['/calendar', '📅', 'Coming up']]],
-  ['Analysis', [['/risk', '🚦', 'Country risk'], ['/signals', '⚡', 'Signals'], ['/news', '📰', 'All news'], ['/markets?tab=fx', '💱', 'Currency watch']]],
-  ['Tools', [['/countries', '🌐', 'Countries'], ['/ask', '💬', 'Ask WorldPulse'], ['/search', '🔎', 'Search'], ['/watch', '⭐', 'Watchlist & alerts'], ['/learn', '📘', 'Learn'], ['/about', '🧪', 'About & sources']]],
+// Site map: four sections, each page with a one-line description.
+type NavItem = [string, string, string, string]
+const SECTIONS: [string, string, NavItem[]][] = [
+  ['World', '🌍', [['/stress', '🌡️', 'World Stress Index', 'How tense the world is today'], ['/map', '🗺️', 'World map', 'Tap any country to see what is happening'],
+    ['/explain', '🧭', 'Big conflicts, explained', 'How they started, who is involved'], ['/countries', '🌐', 'Countries', 'A profile for every country'],
+    ['/risk', '🚦', 'Country risk', 'Traffic-light levels by country'], ['/calendar', '📅', 'Coming up', 'Elections and interest-rate decisions']]],
+  ['Money', '💰', [['/markets', '📈', 'Markets', 'Prices and charts'], ['/markets?tab=fx', '💱', 'Currency watch', 'Currencies against the US dollar'],
+    ['/products', '📦', 'Product watch', 'Oil, grain, metals, chips…'], ['/energy', '🛢️', 'Energy', 'Oil and gas prices with the news'],
+    ['/trade', '🚢', 'Trade & shipping', 'Sanctions, tariffs, sea routes, supply chains']]],
+  ['News', '📰', [['/news', '📰', 'All news', 'Every headline from the last 3 days'], ['/conflict', '🛡️', 'Conflict & security', 'Wars, attacks and security'],
+    ['/policy', '🏛️', 'Policy & elections', 'Governments, central banks, elections'], ['/quakes', '🌋', 'Earthquakes', 'Measured by USGS'],
+    ['/briefings', '📋', 'Briefings', 'Daily and weekly summaries'], ['/signals', '⚡', 'Unusual activity', 'Numbers moving much faster than normal']]],
+  ['For you', '🎯', [['/me', '🎯', 'How does this affect me?', 'A short note for your situation'], ['/watch', '⭐', 'Watchlist & alerts', 'Follow countries, prices, topics'],
+    ['/ask', '💬', 'Ask WorldPulse', 'Ask a question in plain words'], ['/search', '🔎', 'Search', 'Stories, countries, prices and the web'],
+    ['/learn', '📘', 'Learn the words', 'Simple explanations of news terms'], ['/about', '🧪', 'About & sources', 'Where everything comes from']]],
 ]
-const BOTTOM: [string, string, string][] = [['/', '🌍', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/ask', '💬', 'Ask']]
+const BOTTOM: [string, string, string][] = [['/', '🏠', 'Home'], ['/map', '🗺️', 'Map'], ['/markets', '📈', 'Markets'], ['/me', '🎯', 'For you']]
 
 function Router({ path, query }: { path: string; query: string }) {
   const parts = path.split('/').filter(Boolean)
@@ -132,6 +142,7 @@ function Router({ path, query }: { path: string; query: string }) {
     case 'me': return <Impact />
     case 'products': return <Products />
     case 'calendar': return <Calendar />
+    case 'stress': return <StressPage />
     case 'explain': return id ? <CrisisPage id={id} key={id} /> : <Crises />
     case 'policy': return <Policy query={query} key={query} />
     case 'briefings': return <Briefings query={query} />
@@ -151,15 +162,17 @@ function App() {
   const [theme, toggle] = useTheme()
   const install = useInstall()
   const [more, setMore] = useState(false)
+  const [sec, setSec] = useState<string | null>(null)
   const meta = useData<Meta>('meta.json')
   const [path, query = ''] = route.split('?')
-  useEffect(() => setMore(false), [route])
+  useEffect(() => { setMore(false); setSec(null) }, [route])
   useEffect(() => { import('./pages/tools').then((m) => m.evaluateAlerts()).catch(() => undefined) }, [])
 
   if (path.startsWith('/embed/')) return <Suspense fallback={<Loading rows={3} />}><EmbedWidget id={path.split('/')[2] || 'prices'} /></Suspense>
 
   const active = (href: string) => (href === '/' ? path === '/' : path.startsWith(href.split('?')[0]) || (href === '/countries' && (path.startsWith('/country/') || path === '/risk')) || (href === '/signals' && path.startsWith('/signal/')))
-  const exploreActive = EXPLORE.some(([, items]) => items.some(([h]) => active(h))) && !PRIMARY.some(([h]) => active(h))
+  const secActive = (items: NavItem[]) => items.some(([h]) => active(h))
+  const exploreActive = SECTIONS.some(([, , items]) => secActive(items)) && !BOTTOM.some(([h]) => active(h))
   const stale = meta.data && hoursSince(meta.data.generated_at) > 24
   return (
     <div className="app">
@@ -167,21 +180,18 @@ function App() {
         <div className="nav-inner">
           <a className="brand" href="#/" aria-label="WorldPulse home"><div className="brand-logo"><Logo /></div><b>WorldPulse</b></a>
           <nav className="nav-links" aria-label="Main">
-            {PRIMARY.map(([href, , label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}>{t(label)}</a>)}
-            <div className="explore">
-              <button type="button" className={`explore-btn ${exploreActive || more ? 'active' : ''}`} onClick={() => setMore(!more)} aria-expanded={more}>{t('Explore')} ▾</button>
-              {more && (
-                <>
-                  <div className="explore-bg" onClick={() => setMore(false)} />
-                  <div className="explore-menu" role="menu">
-                    {EXPLORE.map(([g, items]) => (
-                      <div key={g}><div className="explore-h">{t(g)}</div>
-                        {items.map(([href, icon, label]) => <a key={href} role="menuitem" href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}</a>)}</div>
-                    ))}
+            <a href="#/" className={path === '/' ? 'active' : ''}>{t('Home')}</a>
+            {SECTIONS.map(([g, icon, items]) => (
+              <div key={g} className="explore">
+                <button type="button" className={`explore-btn ${secActive(items) || sec === g ? 'active' : ''}`} onClick={() => setSec(sec === g ? null : g)} aria-expanded={sec === g}>{icon} {t(g)} ▾</button>
+                {sec === g && <>
+                  <div className="explore-bg" onClick={() => setSec(null)} />
+                  <div className="explore-menu mega" role="menu">
+                    {items.map(([href, ic, label, desc]) => <a key={href} role="menuitem" href={`#${href}`} className={active(href) ? 'active' : ''}><span className="mi">{ic}</span><span><b>{t(label)}</b><small>{desc}</small></span></a>)}
                   </div>
-                </>
-              )}
-            </div>
+                </>}
+              </div>
+            ))}
           </nav>
           <SearchBox />
           <div className="nav-actions">
@@ -205,11 +215,10 @@ function App() {
           <div className="sheet-bg" onClick={() => setMore(false)} />
           <div className="sheet" role="dialog" aria-label="More pages">
             <div className="sheet-grip" />
-            {EXPLORE.map(([g, items]) => (
-              <div key={g} style={{ marginBottom: 10 }}><div className="explore-h">{t(g)}</div>
-                <div className="sheet-grid">{items.map(([href, icon, label]) => <a key={href} href={`#${href}`}><span>{icon}</span>{t(label)}</a>)}</div></div>
+            {SECTIONS.map(([g, icon, items]) => (
+              <div key={g} style={{ marginBottom: 12 }}><div className="explore-h">{icon} {t(g)}</div>
+                <div className="sheet-grid">{items.map(([href, ic, label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}><span>{ic}</span>{t(label)}</a>)}</div></div>
             ))}
-            <a href="#/briefings" className="btn ghost" style={{ display: 'block', textAlign: 'center', marginTop: 4 }}>📋 {t('Briefings')}</a>
             {install && <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={install}>⬇ {t('Install app')}</button>}
           </div>
         </div>

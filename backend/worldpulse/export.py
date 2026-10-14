@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import PROCESSING_VERSION, __version__
-from . import ai, calendar, conflicts, context, insights
+from . import ai, calendar, conflicts, context, insights, stress
 from .briefings import country_briefing
 import os
 from xml.sax.saxutils import escape
@@ -313,7 +313,8 @@ def export_all(conn: sqlite3.Connection, registry: dict, out: Path, briefings: l
              "changes.json": insights.changes(conn, registry), "elections.json": insights.elections(conn), "official.json": insights.official(conn),
              "corrections.json": insights.corrections(conn), "weekly.json": insights.weekly(conn, registry),
              "conflicts.json": conflicts.build(conn, {x["id"] for x in events}),
-             "calendar.json": calendar.upcoming(conn)}
+             "calendar.json": calendar.upcoming(conn),
+             "stress.json": stress.build(conn, risk)}
     for name, data in views.items():
         sizes[name] = _write(out / name, data)
     quality = quality_report or {"ok": True, "problems": [], "checks": []}

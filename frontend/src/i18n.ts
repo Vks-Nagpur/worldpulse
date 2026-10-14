@@ -2,7 +2,7 @@
 import { useSyncExternalStore } from 'react'
 
 const HI: Record<string, string> = {
-  'Today': 'आज', 'Home': 'होम', 'For you': 'आपके लिए', 'Coming up': 'आगामी', 'How does this affect me?': 'इसका मुझ पर क्या असर?', 'Map': 'नक्शा', 'World map': 'विश्व मानचित्र', 'Explore': 'खोजें', 'Topics': 'विषय', 'Analysis': 'विश्लेषण', 'Tools': 'टूल्स', 'Markets': 'बाज़ार', 'Energy': 'ऊर्जा', 'Trade': 'व्यापार', 'Conflict': 'संघर्ष', 'More': 'और',
+  'Today': 'आज', 'Home': 'होम', 'For you': 'आपके लिए', 'World': 'दुनिया', 'Money': 'पैसा', 'News': 'समाचार', 'World Stress Index': 'विश्व तनाव सूचकांक', 'Learn the words': 'शब्द समझें', 'Unusual activity': 'असामान्य गतिविधि', 'Coming up': 'आगामी', 'How does this affect me?': 'इसका मुझ पर क्या असर?', 'Map': 'नक्शा', 'World map': 'विश्व मानचित्र', 'Explore': 'खोजें', 'Topics': 'विषय', 'Analysis': 'विश्लेषण', 'Tools': 'टूल्स', 'Markets': 'बाज़ार', 'Energy': 'ऊर्जा', 'Trade': 'व्यापार', 'Conflict': 'संघर्ष', 'More': 'और',
   'Trade & shipping': 'व्यापार और शिपिंग', 'Conflict & security': 'संघर्ष और सुरक्षा', 'Country risk': 'देश जोखिम', 'Countries': 'देश',
   'Signals': 'संकेत', 'Policy & elections': 'नीति और चुनाव', 'Briefings': 'ब्रीफ़िंग', 'Weekly review': 'साप्ताहिक समीक्षा', 'All news': 'सभी समाचार',
   'Ask': 'पूछें', 'Ask WorldPulse': 'WorldPulse से पूछें', 'Search': 'खोज', 'Watchlist & alerts': 'वॉचलिस्ट और अलर्ट', 'Learn': 'समझें', 'Earthquakes': 'भूकंप',

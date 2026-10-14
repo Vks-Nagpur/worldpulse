@@ -13,8 +13,9 @@ import { NAME2ISO, NUM2ISO } from '../isoNumeric'
 import { ROUTE_POINTS, routeStatus, type Route } from '../routes'
 import { Badge, byImportance, flag, frontWorthy, RISK } from '../util'
 
-type Layer = 'news' | 'conflict' | 'risk' | 'disasters' | 'routes'
+type Layer = 'stress' | 'news' | 'conflict' | 'risk' | 'disasters' | 'routes'
 const LAYERS: { v: Layer; label: string; help: string }[] = [
+  { v: 'stress', label: '🌡️ Stress', help: 'Each country’s stress score (0–100) from its risk level, news surge, currency swing and internet outages. Tap a country for details.' },
   { v: 'news', label: '📰 News', help: 'How many confirmed stories mention each country this week.' },
   { v: 'conflict', label: '⚔️ Conflict', help: 'Stories about wars, attacks and security this week.' },
   { v: 'risk', label: '🚦 Risk', help: 'WorldPulse risk level from conflict, sanctions, disasters and unusual signals.' },
@@ -44,9 +45,10 @@ export function WorldMap() {
   const risk = useData<{ countries: { iso2: string; level: number }[] }>('risk.json')
   const qk = useData<{ quakes: (string | number | null)[][] }>('quakes.json')
   const { by } = useCountries()
-  const [layer, setLayer] = useState<Layer>('news')
+  const [layer, setLayer] = useState<Layer>('stress')
   const [sel, setSel] = useState<string | null>(null)
   const rt = useData<{ routes: Route[] }>(layer === 'routes' ? 'chokepoints.json' : null)
+  const st = useData<{ countries: Record<string, { score: number; level: string }> }>(layer === 'stress' ? 'stress.json' : null)
   const [view, setView] = useState({ k: 1, x: 0, y: 0 })
   const svgRef = useRef<SVGSVGElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -72,6 +74,7 @@ export function WorldMap() {
   const max = layer === 'news' ? Math.max(0, ...Object.values(counts.news)) : layer === 'conflict' ? Math.max(0, ...Object.values(counts.conflict)) : 3
   const cls = (iso: string) => {
     if (layer === 'disasters' || layer === 'routes') return 'm0'
+    if (layer === 'stress') { const c = st.data?.countries[iso]; return c ? `sl-${c.level}` : 'm0' }
     if (layer === 'risk') { const l = riskBy[iso]; return l == null ? 'm0' : `r${l}` }
     return `m${bucket(value(iso), max)}`
   }
@@ -137,7 +140,7 @@ export function WorldMap() {
                 {SHAPES.map((s, i) => (
                   <path key={s.iso + i} d={s.d} className={`land ${cls(s.iso)} ${sel === s.iso ? 'sel' : ''}`} style={{ strokeWidth: 0.6 / view.k }}
                     onClick={() => pick(s.iso)}>
-                    <title>{`${by[s.iso]?.name || s.name}${layer === 'risk' ? (riskBy[s.iso] != null ? ` — ${RISK[riskBy[s.iso]]?.label}` : '') : !['disasters', 'routes'].includes(layer) ? ` — ${value(s.iso)} stories` : ''}`}</title>
+                    <title>{`${by[s.iso]?.name || s.name}${layer === 'risk' ? (riskBy[s.iso] != null ? ` — ${RISK[riskBy[s.iso]]?.label}` : '') : layer === 'stress' ? (st.data?.countries[s.iso] ? ` — stress ${st.data.countries[s.iso].score} (${st.data.countries[s.iso].level})` : '') : !['disasters', 'routes'].includes(layer) ? ` — ${value(s.iso)} stories` : ''}`}</title>
                   </path>
                 ))}
                 {layer === 'disasters' && quakes.map((q) => q.xy && (
@@ -172,6 +175,8 @@ export function WorldMap() {
             <span className="small muted">{L.help}</span>
             {layer === 'risk' ? (
               <span className="legend-row">{[0, 1, 2, 3].map((l) => <span key={l}><i className={`sw r${l}`} />{RISK[l]?.label}</span>)}</span>
+            ) : layer === 'stress' ? (
+              <span className="legend-row">{['Calm', 'Normal', 'Elevated', 'High', 'Extreme'].map((l) => <span key={l}><i className={`sw sl-${l}`} />{l}</span>)}</span>
             ) : layer === 'routes' ? (
               <span className="legend-row"><span><i className="sw dot" style={{ background: '#22c55e' }} />Quiet</span><span><i className="sw dot" style={{ background: '#f59e0b' }} />In the news</span><span><i className="sw dot" style={{ background: '#ef4444' }} />Very busy</span></span>
             ) : layer === 'disasters' ? (
