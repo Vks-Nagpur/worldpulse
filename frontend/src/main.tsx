@@ -208,16 +208,17 @@ function App() {
       </main>
       <nav className="bottom-nav" aria-label="Main">
         {BOTTOM.map(([href, icon, label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}><span>{icon}</span>{t(label)}</a>)}
-        <button type="button" className={more || exploreActive ? 'active' : ''} onClick={() => setMore(true)}><span>☰</span>{t('More')}</button>
+        <button type="button" className={`more-fab ${more || exploreActive ? 'active' : ''}`} onClick={() => setMore(true)} aria-label={t('More')}><span className="mf-icon"><i /><i /><i /><i /></span>{t('More')}</button>
       </nav>
       {more && (
         <div className="mobile-only">
           <div className="sheet-bg" onClick={() => setMore(false)} />
-          <div className="sheet" role="dialog" aria-label="More pages">
+          <div className="sheet more-sheet" role="dialog" aria-label="More pages">
             <div className="sheet-grip" />
-            {SECTIONS.map(([g, icon, items]) => (
-              <div key={g} style={{ marginBottom: 12 }}><div className="explore-h">{icon} {t(g)}</div>
-                <div className="sheet-grid">{items.map(([href, ic, label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}><span>{ic}</span>{t(label)}</a>)}</div></div>
+            <div className="ms-head"><div><b>All of WorldPulse</b><span>Pick a page</span></div><button type="button" className="icon-btn" onClick={() => setMore(false)} aria-label="Close">✕</button></div>
+            {SECTIONS.map(([g, icon, items], si) => (
+              <section key={g} className={`ms-sec ms-${si}`}><div className="ms-h"><span>{icon}</span>{t(g)}</div>
+                <div className="sheet-grid">{items.map(([href, ic, label]) => <a key={href} href={`#${href}`} className={active(href) ? 'active' : ''}><span>{ic}</span>{t(label)}</a>)}</div></section>
             ))}
             {install && <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={install}>⬇ {t('Install app')}</button>}
           </div>

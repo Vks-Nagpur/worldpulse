@@ -21,7 +21,10 @@ export function Loading({ rows = 4 }: { rows?: number }) {
   return <div className="card">{Array.from({ length: rows }).map((_, i) => <div key={i} className="skeleton" style={{ height: 16, margin: '12px 0', width: `${92 - i * 13}%` }} />)}</div>
 }
 export function ErrorBox({ error }: { error: string }) {
-  return <div className="banner bad"><span>⚠️</span><div><b>This section could not be loaded right now.</b><div className="small">Please check your connection and refresh the page.</div></div></div>
+  // A missing file (404) means the section is new and its data arrives with the next update — not a problem for the reader.
+  if (/HTTP 404/.test(error)) return <div className="banner info"><span>⏳</span><div><b>This section is being prepared.</b><div className="small">Its data arrives with the next automatic update (usually within an hour). Please check back soon.</div></div></div>
+  if (/offline|503|Failed to fetch|NetworkError/i.test(error)) return <div className="banner warn"><span>📶</span><div><b>You seem to be offline.</b><div className="small">Showing what was saved on this device. Reconnect and refresh to get the latest.</div></div></div>
+  return <div className="banner warn"><span>🔄</span><div><b>This section didn’t load this time.</b><div className="small">Please refresh the page in a moment.</div></div></div>
 }
 export function Empty({ children }: { children: ReactNode }) { return <div className="empty">{children}</div> }
 export function Stat({ label, value, note }: { label: string; value: ReactNode; note?: ReactNode }) {
